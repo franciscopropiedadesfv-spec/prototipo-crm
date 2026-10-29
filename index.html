@@ -116,7 +116,35 @@ input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--accent);tra
 .phone{max-width:340px;margin:0 auto;border:3px solid var(--line);border-radius:28px;padding:18px;display:grid;gap:12px;background:var(--bg)}
 .empty{color:var(--muted);text-align:center;padding:18px}
 .sum{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
-@media (max-width:640px){h1{font-size:20px}.circ{min-width:44px;height:44px}}
+@media (max-width:700px){
+  h1{font-size:20px}body{font-size:15px}
+  .top .in{gap:6px 10px}.crumb{flex:1 1 100%;order:3;font-size:13px}.top .sp{gap:4px}.top .btn.sm{padding:6px 8px;font-size:12px}
+  main{padding-block:14px 40px}.wrap{gap:14px}.card{padding:12px}
+  input,select,textarea{font-size:16px}
+  .listsearch{flex:1 1 100%;margin-left:0;order:-1;margin-bottom:8px;min-width:0}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.tabs .tab{flex:none}
+  .tabs:has(.listsearch){flex-wrap:wrap}
+  .acc,.idx{grid-template-columns:1fr 1fr}
+  .acc button{padding:10px 36px 10px 12px}
+  .due{min-width:120px}
+  .help{font-size:13px;padding:9px 12px}
+  .scroll{overflow:visible}
+  table.resp thead{display:none}
+  table.resp,table.resp tbody,table.resp tr,table.resp td{display:block;width:100%}
+  table.resp tr{border:1px solid var(--line);border-radius:10px;padding:6px 12px;margin-bottom:10px;background:var(--surface)}
+  table.resp tr.paid,table.resp tr.off{background:var(--soft)}
+  table.resp td{border:0;padding:6px 0;display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:right;min-width:0;overflow-wrap:anywhere}
+  table.resp td+td{border-top:1px dashed var(--line)}
+  table.resp td::before{content:attr(data-label);font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;flex:none;max-width:45%}
+  table.resp td:not([data-label])::before,table.resp td[data-label=""]::before{content:none}
+  table.resp td:empty{display:none}
+  table.resp td.empty{display:block;text-align:center}
+  table.resp td>br{display:none}
+  .circ{min-width:44px;height:44px}
+  .row[style*="flex-end"]{justify-content:stretch!important}.row[style*="flex-end"]>.btn{flex:1 1 auto}
+  .modal{padding:14px}.modal .actions .btn{flex:1 1 auto}
+  .tot b{font-size:16px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -267,6 +295,8 @@ function render(){
  $('#crumb').textContent=TITULOS[cur.v]+sub;
  $('#back').hidden=cur.v==='inicio';
  $('#app').innerHTML=V[cur.v](cur.p);
+ document.querySelectorAll('#app table').forEach(t=>{const hs=[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim());if(!hs.length)return;t.classList.add('resp');
+  t.querySelectorAll('tbody tr').forEach(tr=>[...tr.children].forEach((td,i)=>{if(!td.hasAttribute('colspan'))td.dataset.label=hs[i]||'';}));});
  bind();
 }
 function help(t){return ayudas?`<div class="help"><div><b>Qué es esta pantalla.</b> ${t}</div><button class="btn sm ghost x" data-act="hidehelp" type="button">Ocultar</button></div>`:'';}
