@@ -36,7 +36,7 @@ button{font:inherit}
 .brand{font-family:var(--display);font-weight:700;font-size:17px;cursor:pointer}
 .brand small{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:2px}
 .crumb{color:var(--muted);font-size:13.5px;min-width:0}
-.topsearch{flex:1 1 260px;min-width:0;max-width:440px}
+.listsearch{margin-left:auto;flex:0 1 300px;min-width:180px;align-self:center;margin-bottom:6px}
 .top .sp{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 main{padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:1240px;margin:0 auto;display:grid;gap:18px}
@@ -123,7 +123,6 @@ input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--accent);tra
 <header class="top"><div class="in">
   <span class="brand" id="home" role="button" tabindex="0">CRM Parra<small>Prototipo</small></span>
   <span class="crumb" id="crumb"></span>
-  <div class="search topsearch"><input id="q" type="search" placeholder="Buscar carpeta, dirección, nombre o DNI" aria-label="Buscar en todo el sistema" autocomplete="off"><div class="results" id="res" hidden></div></div>
   <span class="sp">
     <button class="btn sm ghost" id="back" type="button">← Volver</button>
     <button class="btn sm ghost" id="helpt" type="button">Ocultar ayudas</button>
@@ -261,7 +260,7 @@ function verCob(cp,p){const ade=p.ade||0;if(!ade)return vencidos(cp);const lim=a
 /* ======= navegación ======= */
 let stack=[],cur={v:'inicio',p:{}},ayudas=true;
 const TITULOS={inicio:'Inicio',cobranza:'Cobranza',contrato:'Contrato',persona:'Archivo de la persona',propiedad:'Archivo de la propiedad',cta:'Cuenta corriente',docs:'Documentos',acceso:'Acceso de la persona',caja:'Estado de caja',morosos:'Reporte de morosos',liqpend:'Liquidaciones pendientes',liquidacion:'Liquidación',prox:'Próximo período',vencer:'Contratos a vencer',cambio:'Cambio de período'};
-function go(v,p={},push=true){const qq=$('#q');if(qq){qq.value='';$('#res').hidden=true;}if(push)stack.push(cur);cur={v,p};render();window.scrollTo(0,0);}
+function go(v,p={},push=true){if(push)stack.push(cur);cur={v,p};render();window.scrollTo(0,0);}
 function back(){if(!stack.length){go('inicio',{},false);return;}cur=stack.pop();render();}
 function render(){
  const sub=cur.p.cp?' · carpeta '+cur.p.cp:cur.p.id&&S.P[cur.p.id]?' · '+S.P[cur.p.id].n:cur.p.pr?' · '+S.PR[cur.p.pr].dir:'';
@@ -296,7 +295,7 @@ V.inicio=p=>{
  if(modo==='Contratos'){lista=`<div class="scroll"><table><thead><tr><th>Carpeta</th><th>Vence</th><th>Dirección</th><th>Cobranza</th><th>Liquidación</th><th>Estado</th></tr></thead><tbody>${Object.entries(S.C).map(([cp,c])=>{
    const tot=days(d(c.desde),d(c.hasta)),pas=days(d(c.desde),HOY),pct=Math.min(100,Math.max(0,pas/tot*100)),rest=days(HOY,d(c.hasta));
    const col=rest<=90?'var(--bad)':rest<=180?'var(--warn)':'var(--good)';const dl=deuda(cp);
-   return `<tr><td><button class="circ" type="button" data-go="contrato" data-p='{"cp":"${cp}"}' aria-label="Abrir carpeta ${cp}">${cp}</button></td>
+   return `<tr data-s="${esc((cp+' '+S.PR[c.prop].dir+' '+pers(c.inq).n+' '+pers(c.inq).dni+' '+S.PR[c.prop].due.map(x=>pers(x[0]).n).join(' ')).toLowerCase())}"><td><button class="circ" type="button" data-go="contrato" data-p='{"cp":"${cp}"}' aria-label="Abrir carpeta ${cp}">${cp}</button></td>
    <td><div class="due">${fdate(c.hasta)}<div class="track"><span style="width:${pct}%;background:${col}"></span></div></div></td>
    <td>${L(esc(S.PR[c.prop].dir),'propiedad',{pr:c.prop})}<br><span class="muted">${esc(S.PR[c.prop].loc)}</span></td>
    <td>${L(esc(pers(c.inq).n),'cobranza',{cp})}<br><span class="icons">
@@ -306,12 +305,12 @@ V.inicio=p=>{
      <button class="icon" type="button" title="Cuenta corriente" aria-label="Cuenta corriente" data-go="cta" data-p='{"cp":"${cp}"}'>${IC.cta}</button></span></td>
    <td>${S.PR[c.prop].due.map(x=>nombre(x[0])).join('<br>')}</td>
    <td>${estado(cp)}</td></tr>`;}).join('')}</tbody></table></div>`;}
- else if(modo==='Stock'){lista=`<div class="scroll"><table><thead><tr><th>Propiedad</th><th>Tipo</th><th>Hub</th><th>Propietarios</th></tr></thead><tbody>${Object.entries(S.PR).map(([k,r])=>`<tr><td>${L(esc(r.dir),'propiedad',{pr:k})}</td><td>${r.tipo}</td><td class="muted">${r.hub}</td><td>${r.due.map(x=>nombre(x[0])+` <span class="muted">${x[1]}%</span>`).join('<br>')}</td></tr>`).join('')}</tbody></table></div>`;}
- else{const pref=modo==='Inquilinos'?'I':'O';lista=`<div class="scroll"><table><thead><tr><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Contratos</th></tr></thead><tbody>${Object.keys(S.P).filter(k=>k[0]===pref).map(k=>`<tr><td>${nombre(k)}</td><td>${pers(k).dni}</td><td>${pers(k).tel}</td><td>${rolesDe(k).map(r=>L(r.cp,'contrato',{cp:r.cp})).join(' ')}</td></tr>`).join('')}</tbody></table></div>`;}
- return `${help('Es lo primero que se ve al entrar. Arriba están los índices (el buscador de la barra funciona desde cualquier pantalla), en el medio los 6 accesos a las tareas del mes, y abajo la lista de contratos por número de carpeta. Tocá el número de carpeta para ver el contrato, el nombre del inquilino para cobrarle, y los íconos para el acceso al portal, el archivo de la persona, los documentos y la cuenta corriente.')}
+ else if(modo==='Stock'){lista=`<div class="scroll"><table><thead><tr><th>Propiedad</th><th>Tipo</th><th>Hub</th><th>Propietarios</th></tr></thead><tbody>${Object.entries(S.PR).map(([k,r])=>`<tr data-s="${esc((r.dir+' '+r.hub+' '+r.due.map(x=>pers(x[0]).n).join(' ')+' '+Object.keys(S.C).filter(cp=>S.C[cp].prop===k).join(' ')).toLowerCase())}"><td>${L(esc(r.dir),'propiedad',{pr:k})}</td><td>${r.tipo}</td><td class="muted">${r.hub}</td><td>${r.due.map(x=>nombre(x[0])+` <span class="muted">${x[1]}%</span>`).join('<br>')}</td></tr>`).join('')}</tbody></table></div>`;}
+ else{const pref=modo==='Inquilinos'?'I':'O';lista=`<div class="scroll"><table><thead><tr><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Contratos</th></tr></thead><tbody>${Object.keys(S.P).filter(k=>k[0]===pref).map(k=>`<tr data-s="${esc((pers(k).n+' '+pers(k).dni+' '+rolesDe(k).map(r=>r.cp).join(' ')).toLowerCase())}"><td>${nombre(k)}</td><td>${pers(k).dni}</td><td>${pers(k).tel}</td><td>${rolesDe(k).map(r=>L(r.cp,'contrato',{cp:r.cp})).join(' ')}</td></tr>`).join('')}</tbody></table></div>`;}
+ return `${help('Es lo primero que se ve al entrar. Arriba están los índices, en el medio los 6 accesos a las tareas del mes, y abajo la lista de contratos por número de carpeta, con un buscador que la filtra por carpeta, dirección, nombre o DNI. Tocá el número de carpeta para ver el contrato, el nombre del inquilino para cobrarle, y los íconos para el acceso al portal, el archivo de la persona, los documentos y la cuenta corriente.')}
   <div><div class="lbl" style="margin-bottom:6px">Índices · valores de ejemplo</div><div class="idx">${[['ICL','1,0412'],['Casa Propia','1,0318'],['IPC','2,1%'],['RIPTE','1,9%'],['CAC','2,4%'],['UVA','1.312,55']].map(x=>`<div><b>${x[0]}</b><span>${x[1]} · sep/2026</span></div>`).join('')}</div></div>
  <div class="acc">${ac.map(a=>`<button type="button" data-go="${a[0]}" data-p="{}">${a[1]}<span>${a[2]}</span>${a[3]?`<i class="badge">${a[3]}</i>`:''}</button>`).join('')}</div>
- <div class="card"><div class="tabs">${Object.keys(cnt).map(k=>`<button type="button" class="tab${k===modo?' on':''}" data-modo="${k}">${k} <span class="muted">${cnt[k]}</span></button>`).join('')}</div>${lista}
+ <div class="card"><div class="tabs">${Object.keys(cnt).map(k=>`<button type="button" class="tab${k===modo?' on':''}" data-modo="${k}">${k} <span class="muted">${cnt[k]}</span></button>`).join('')}<input id="fq" class="listsearch" type="search" placeholder="Buscar carpeta, dirección, nombre o DNI" aria-label="Buscar en la lista" autocomplete="off" value="${esc(p.f||'')}"></div>${lista}<p id="fnone" class="empty" hidden>Sin resultados para esa búsqueda.</p>
  <p class="muted" style="margin:0;font-size:12.5px">Todos los nombres, direcciones y montos son inventados.</p></div>`;
 };
 
@@ -538,6 +537,7 @@ function bind(){
  document.querySelectorAll('[data-apr]').forEach(c=>c.onchange=()=>{S.aprobados[c.dataset.apr]=c.checked;});
  const ab=$('#abon');if(ab)ab.oninput=()=>{cur.p.abon=ab.value===''?undefined:+ab.value;};
  const ct=$('#contado');if(ct)ct.onchange=()=>{cur.p={...cur.p,contado:+ct.value};render();};
+ const fq=$('#fq');if(fq){const ap=()=>{const t=fq.value.trim().toLowerCase().replace(/\./g,'');cur.p.f=fq.value;let n=0;document.querySelectorAll('tr[data-s]').forEach(r=>{const ok=!t||r.dataset.s.replace(/\./g,'').includes(t);r.hidden=!ok;if(ok)n++;});$('#fnone').hidden=n>0;};fq.oninput=ap;fq.onkeydown=e=>{if(e.key==='Escape'){fq.value='';ap();}};ap();}
  const ha=$('#hastames');if(ha)ha.onchange=()=>{cur.p={...cur.p,ade:+ha.value,sel:undefined,abon:undefined};render();};
  const rd=$('#red');if(rd)rd.onchange=()=>{cur.p={...cur.p,red:+rd.value};render();};
  
@@ -623,7 +623,6 @@ const ACT={
 $('#home').onclick=()=>{stack=[];go('inicio',{},false);};
 $('#home').onkeydown=e=>{if(e.key==='Enter'){stack=[];go('inicio',{},false);}};
 $('#back').onclick=back;
-{const q=$('#q');q.oninput=()=>buscar(q.value);q.onkeydown=e=>{if(e.key==='Escape'){q.value='';buscar('');}if(e.key==='Enter'){const f=$('#res [data-go]');if(f)f.click();}};document.addEventListener('click',e=>{if(!e.target.closest('.topsearch'))$('#res').hidden=true;});}
 $('#helpt').onclick=()=>{ayudas=!ayudas;$('#helpt').textContent=ayudas?'Ocultar ayudas':'Mostrar ayudas';render();};
 $('#reset').onclick=()=>{S=semilla();stack=[];ayudas=true;$('#helpt').textContent='Ocultar ayudas';go('inicio',{},false);toast('Ejemplo reiniciado');};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=document.querySelector('.overlay');if(o)o.remove();}});
