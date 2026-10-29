@@ -36,6 +36,7 @@ button{font:inherit}
 .brand{font-family:var(--display);font-weight:700;font-size:17px;cursor:pointer}
 .brand small{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:2px}
 .crumb{color:var(--muted);font-size:13.5px;min-width:0}
+.topsearch{flex:1 1 260px;min-width:0;max-width:440px}
 .top .sp{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 main{padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:1240px;margin:0 auto;display:grid;gap:18px}
@@ -122,6 +123,7 @@ input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--accent);tra
 <header class="top"><div class="in">
   <span class="brand" id="home" role="button" tabindex="0">CRM Parra<small>Prototipo</small></span>
   <span class="crumb" id="crumb"></span>
+  <div class="search topsearch"><input id="q" type="search" placeholder="Buscar carpeta, dirección, nombre o DNI" aria-label="Buscar en todo el sistema" autocomplete="off"><div class="results" id="res" hidden></div></div>
   <span class="sp">
     <button class="btn sm ghost" id="back" type="button">← Volver</button>
     <button class="btn sm ghost" id="helpt" type="button">Ocultar ayudas</button>
@@ -240,10 +242,26 @@ const owners=()=>Object.keys(S.P).filter(k=>k[0]==='O');
 const ajustesDic=()=>Object.keys(S.C).filter(cp=>{const c=C(cp),ini=d(c.desde),n=(2026-ini.getFullYear())*12+(11-ini.getMonth());return n>0&&n%c.cada===0&&d(c.hasta)>=d('2026-12-01');});
 const nuevoMonto=a=>Math.round(a*1.12/5000)*5000;
 
+/* ======= cuotas futuras ======= */
+const addMes=(m,n)=>{let y=+m.slice(0,4),mo=+m.slice(5,7)-1+n;y+=Math.floor(mo/12);mo=((mo%12)+12)%12;return y+'-'+String(mo+1).padStart(2,'0');};
+const mesFin=cp=>C(cp).hasta.slice(0,7);
+const desdeIni=(cp,m)=>{const ini=d(C(cp).desde);return (+m.slice(0,4)-ini.getFullYear())*12+(+m.slice(5,7)-1-ini.getMonth());};
+const maxAde=cp=>{let n=0;while(addMes('2026-10',n+1)<=mesFin(cp))n++;return n;};
+function genFuturo(cp,lim){const c=C(cp);let m='2026-11',aj=false;
+ while(m<=lim&&m<=mesFin(cp)){const k=desdeIni(cp,m);if(k>0&&k%c.cada===0)aj=true;
+  if(!S.cargos.some(x=>x.carpeta===cp&&x.mes===m&&x.cuenta==='Alquiler'&&/^Alquiler/.test(x.desc))){
+   const base={carpeta:cp,mes:m,vence:m+'-10',estado:'pendiente',liq:[],ajustes:[],ajPend:aj};
+   S.cargos.push({...base,id:S.nextId++,cuenta:'Alquiler',desc:`Alquiler cuota ${k+1} de ${c.cuotas} – ${mesTxt(m)}`,monto:c.alq});
+   if(c.exp)S.cargos.push({...base,id:S.nextId++,cuenta:'Expensas',desc:'Expensas '+mesTxt(m),monto:c.exp});
+   if(c.iva)S.cargos.push({...base,id:S.nextId++,cuenta:'Alquiler',desc:'IVA 21% sobre alquiler – '+mesTxt(m),monto:Math.round(c.alq*.21)});}
+  m=addMes(m,1);}}
+function verCob(cp,p){const ade=p.ade||0;if(!ade)return vencidos(cp);const lim=addMes('2026-10',ade);genFuturo(cp,lim);
+ return pend(cp).filter(x=>d(x.vence)<=HOY||x.mes<=lim).sort((a,b)=>a.vence<b.vence?-1:a.vence>b.vence?1:a.id-b.id);}
+
 /* ======= navegación ======= */
 let stack=[],cur={v:'inicio',p:{}},ayudas=true;
 const TITULOS={inicio:'Inicio',cobranza:'Cobranza',contrato:'Contrato',persona:'Archivo de la persona',propiedad:'Archivo de la propiedad',cta:'Cuenta corriente',docs:'Documentos',acceso:'Acceso de la persona',caja:'Estado de caja',morosos:'Reporte de morosos',liqpend:'Liquidaciones pendientes',liquidacion:'Liquidación',prox:'Próximo período',vencer:'Contratos a vencer',cambio:'Cambio de período'};
-function go(v,p={},push=true){if(push)stack.push(cur);cur={v,p};render();window.scrollTo(0,0);}
+function go(v,p={},push=true){const qq=$('#q');if(qq){qq.value='';$('#res').hidden=true;}if(push)stack.push(cur);cur={v,p};render();window.scrollTo(0,0);}
 function back(){if(!stack.length){go('inicio',{},false);return;}cur=stack.pop();render();}
 function render(){
  const sub=cur.p.cp?' · carpeta '+cur.p.cp:cur.p.id&&S.P[cur.p.id]?' · '+S.P[cur.p.id].n:cur.p.pr?' · '+S.PR[cur.p.pr].dir:'';
@@ -290,9 +308,8 @@ V.inicio=p=>{
    <td>${estado(cp)}</td></tr>`;}).join('')}</tbody></table></div>`;}
  else if(modo==='Stock'){lista=`<div class="scroll"><table><thead><tr><th>Propiedad</th><th>Tipo</th><th>Hub</th><th>Propietarios</th></tr></thead><tbody>${Object.entries(S.PR).map(([k,r])=>`<tr><td>${L(esc(r.dir),'propiedad',{pr:k})}</td><td>${r.tipo}</td><td class="muted">${r.hub}</td><td>${r.due.map(x=>nombre(x[0])+` <span class="muted">${x[1]}%</span>`).join('<br>')}</td></tr>`).join('')}</tbody></table></div>`;}
  else{const pref=modo==='Inquilinos'?'I':'O';lista=`<div class="scroll"><table><thead><tr><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Contratos</th></tr></thead><tbody>${Object.keys(S.P).filter(k=>k[0]===pref).map(k=>`<tr><td>${nombre(k)}</td><td>${pers(k).dni}</td><td>${pers(k).tel}</td><td>${rolesDe(k).map(r=>L(r.cp,'contrato',{cp:r.cp})).join(' ')}</td></tr>`).join('')}</tbody></table></div>`;}
- return `${help('Es lo primero que se ve al entrar. Arriba están los índices y el buscador, en el medio los 6 accesos a las tareas del mes, y abajo la lista de contratos por número de carpeta. Tocá el número de carpeta para ver el contrato, el nombre del inquilino para cobrarle, y los íconos para el acceso al portal, el archivo de la persona, los documentos y la cuenta corriente.')}
- <div class="search"><input id="q" type="search" placeholder="Buscar por carpeta, dirección, inquilino, propietario o DNI" aria-label="Buscar" autocomplete="off"><div class="results" id="res" hidden></div></div>
- <div><div class="lbl" style="margin-bottom:6px">Índices · valores de ejemplo</div><div class="idx">${[['ICL','1,0412'],['Casa Propia','1,0318'],['IPC','2,1%'],['RIPTE','1,9%'],['CAC','2,4%'],['UVA','1.312,55']].map(x=>`<div><b>${x[0]}</b><span>${x[1]} · sep/2026</span></div>`).join('')}</div></div>
+ return `${help('Es lo primero que se ve al entrar. Arriba están los índices (el buscador de la barra funciona desde cualquier pantalla), en el medio los 6 accesos a las tareas del mes, y abajo la lista de contratos por número de carpeta. Tocá el número de carpeta para ver el contrato, el nombre del inquilino para cobrarle, y los íconos para el acceso al portal, el archivo de la persona, los documentos y la cuenta corriente.')}
+  <div><div class="lbl" style="margin-bottom:6px">Índices · valores de ejemplo</div><div class="idx">${[['ICL','1,0412'],['Casa Propia','1,0318'],['IPC','2,1%'],['RIPTE','1,9%'],['CAC','2,4%'],['UVA','1.312,55']].map(x=>`<div><b>${x[0]}</b><span>${x[1]} · sep/2026</span></div>`).join('')}</div></div>
  <div class="acc">${ac.map(a=>`<button type="button" data-go="${a[0]}" data-p="{}">${a[1]}<span>${a[2]}</span>${a[3]?`<i class="badge">${a[3]}</i>`:''}</button>`).join('')}</div>
  <div class="card"><div class="tabs">${Object.keys(cnt).map(k=>`<button type="button" class="tab${k===modo?' on':''}" data-modo="${k}">${k} <span class="muted">${cnt[k]}</span></button>`).join('')}</div>${lista}
  <p class="muted" style="margin:0;font-size:12.5px">Todos los nombres, direcciones y montos son inventados.</p></div>`;
@@ -303,21 +320,22 @@ V.cobranza=p=>{
  const tabs=['Datos principales','Conceptos extras','Concepto compartido','Concepto dividido','Concepto particular','Comprobantes'];
  let body='';
  if(tab==='Datos principales'){
-  const ver=p.adelantar?pend(cp):vencidos(cp);const hist=p.atrasar?S.cargos.filter(x=>x.carpeta===cp&&x.estado!=='pendiente'):[];
+  const ver=verCob(cp,p),mx=maxAde(cp),ade=p.ade||0;const hist=p.atrasar?S.cargos.filter(x=>x.carpeta===cp&&x.estado!=='pendiente'):[];
   const sel=p.sel||ver.map(x=>x.id);
-  const rows=ver.map(x=>{const pu=pun(x),on=sel.includes(x.id);return `<tr><td><input type="checkbox" data-sel="${x.id}" ${on?'checked':''} aria-label="Cobrar ${esc(x.desc)}"></td><td>${fdate(x.vence)}</td><td>${x.cuenta}</td><td>${esc(x.desc)}${x.ajustes.length?' <span class="pill info" title="'+esc(x.ajustes.at(-1).motivo)+'">ajustado</span>':''}</td>
+  const rows=ver.map(x=>{const pu=pun(x),on=sel.includes(x.id);return `<tr><td><input type="checkbox" data-sel="${x.id}" ${on?'checked':''} aria-label="Cobrar ${esc(x.desc)}"></td><td>${fdate(x.vence)}</td><td>${x.cuenta}</td><td>${esc(x.desc)}${x.ajPend?' <span class="pill warn" title="Se cobra al valor actual; la diferencia del aumento se genera después">a valor actual</span>':''}${x.ajustes.length?' <span class="pill info" title="'+esc(x.ajustes.at(-1).motivo)+'">ajustado</span>':''}</td>
    <td class="num">${money(x.monto)} <button class="icon" type="button" data-act="ajuste" data-id="${x.id}" title="Ajustar monto" aria-label="Ajustar monto">✎</button></td>
    <td class="num">${pu.dias?`<label><input type="checkbox" data-pun="${x.id}" checked> ${pu.dias} días × 0,5% = ${money(pu.monto)}</label>`:x.perdon?'<span class="pill plain" title="'+esc(x.perdon)+'">perdonado</span>':'<span class="muted">—</span>'}</td>
    <td class="num"><b>${money(x.monto+pu.monto)}</b></td><td><button class="lnk" type="button" data-act="anular" data-id="${x.id}">Anular</button></td></tr>`;}).join('');
   const hrows=hist.map(x=>`<tr class="${x.estado==='anulado'?'off':'paid'}"><td></td><td>${fdate(x.vence)}</td><td>${x.cuenta}</td><td>${esc(x.desc)}</td><td class="num">${money(x.monto)}</td><td></td><td></td><td>${x.estado==='anulado'?'anulado':'pagado · recibo '+String(x.recibo).padStart(4,'0')}</td></tr>`).join('');
   const its=ver.filter(x=>sel.includes(x.id)),tot=its.reduce((a,x)=>a+x.monto+pun(x).monto,0),tp=its.reduce((a,x)=>a+pun(x).monto,0);
-  body=`<div class="scroll"><table><thead><tr><th>Cobrar</th><th>Vence</th><th>Cuenta</th><th>Descripción</th><th class="num">Monto</th><th class="num">Punitorio</th><th class="num">Total</th><th>Acción</th></tr></thead><tbody>${hrows}${rows||`<tr><td colspan="8" class="empty">No debe nada vencido. Con "Adelantar período" se pueden cobrar cuotas que todavía no vencieron.</td></tr>`}</tbody></table></div>
+  body=`<div class="scroll"><table><thead><tr><th>Cobrar</th><th>Vence</th><th>Cuenta</th><th>Descripción</th><th class="num">Monto</th><th class="num">Punitorio</th><th class="num">Total</th><th>Acción</th></tr></thead><tbody>${hrows}${rows||`<tr><td colspan="8" class="empty">No debe nada vencido. Con "Cobrar hasta" o "Adelantar un período" se cobran por adelantado los meses que quiera, hasta el final del contrato.</td></tr>`}</tbody></table></div>
   <div class="tot"><div><span class="lbl">Total a abonar</span><b>${money(tot)}</b></div><div><span class="lbl">Punitorios</span><b>${money(tp)}</b></div><div><span class="lbl">Total abonado</span><input id="abon" type="number" min="0" step="1000" value="${p.abon??tot}" aria-label="Total abonado"></div></div>
   <div class="grid3"><label class="field"><span>Forma de pago</span><select id="forma"><option>Efectivo</option><option>Transferencia</option><option>Cheque</option></select></label>
    <label class="field"><span>Notas que salen en el recibo</span><input id="nota" placeholder="Ej.: El próximo mes aumenta el alquiler"></label></div>
   <div class="row" style="justify-content:flex-end">
    <button class="btn" type="button" data-act="atrasar">${p.atrasar?'Ocultar meses anteriores':'Atrasar período'}</button>
-   <button class="btn" type="button" data-act="adelantar">${p.adelantar?'Solo lo vencido':'Adelantar período'}</button>
+   <label class="row" style="gap:6px"><span class="muted" style="font-size:13px">Cobrar hasta</span><select id="hastames" style="width:auto" aria-label="Cobrar hasta el mes">${['<option value="0">Lo vencido</option>'].concat(Array.from({length:mx},(_,i)=>`<option value="${i+1}" ${ade===i+1?'selected':''}>${mesTxt(addMes('2026-10',i+1))}</option>`)).join('')}</select></label>
+   <button class="btn" type="button" data-act="adelantar" ${ade>=mx?'disabled':''}>Adelantar un período</button>
    <button class="btn" type="button" data-go="cta" data-p='{"cp":"${cp}"}'>Cuenta corriente</button>
    <button class="btn" type="button" data-act="imprimir">Solo imprimir</button>
    <button class="btn primary" type="button" data-act="confirmar" ${its.length?'':'disabled'}>Confirmar pago</button></div>`;
@@ -520,8 +538,9 @@ function bind(){
  document.querySelectorAll('[data-apr]').forEach(c=>c.onchange=()=>{S.aprobados[c.dataset.apr]=c.checked;});
  const ab=$('#abon');if(ab)ab.oninput=()=>{cur.p.abon=ab.value===''?undefined:+ab.value;};
  const ct=$('#contado');if(ct)ct.onchange=()=>{cur.p={...cur.p,contado:+ct.value};render();};
+ const ha=$('#hastames');if(ha)ha.onchange=()=>{cur.p={...cur.p,ade:+ha.value,sel:undefined,abon:undefined};render();};
  const rd=$('#red');if(rd)rd.onchange=()=>{cur.p={...cur.p,red:+rd.value};render();};
- const q=$('#q');if(q){q.oninput=()=>buscar(q.value);q.onkeydown=e=>{if(e.key==='Escape'){q.value='';buscar('');}};}
+ 
 }
 function buscar(t){const r=$('#res');t=t.trim().toLowerCase();if(!t){r.hidden=true;return;}const out=[];
  for(const [cp,c] of Object.entries(S.C))if(cp.includes(t))out.push(['Contrato','Carpeta '+cp+' · '+S.PR[c.prop].dir,'contrato',{cp}]);
@@ -533,13 +552,13 @@ function buscar(t){const r=$('#res');t=t.trim().toLowerCase();if(!t){r.hidden=tr
 const ACT={
  hidehelp(){ayudas=false;$('#helpt').textContent='Mostrar ayudas';render();},
  atrasar(){cur.p={...cur.p,atrasar:!cur.p.atrasar};render();},
- adelantar(){cur.p={...cur.p,adelantar:!cur.p.adelantar,sel:undefined,abon:undefined};render();},
+ adelantar(){cur.p={...cur.p,ade:Math.min((cur.p.ade||0)+1,maxAde(cur.p.cp)),sel:undefined,abon:undefined};render();},
  ajuste(b){const x=S.cargos.find(q=>q.id==b.dataset.id);
   pedirMotivo('Ajustar el monto',`${esc(x.desc)}. El monto no se pisa: queda un ajuste con motivo.`,`<label class="field"><span>Monto nuevo ($)</span><input id="nm" type="number" value="${x.monto}"></label>`,(m,o)=>{const v=+o.querySelector('#nm').value;x.ajustes.push({de:x.monto,a:v,motivo:m});x.monto=v;cur.p.abon=undefined;toast('Ajuste guardado');render();});},
  anular(b){const x=S.cargos.find(q=>q.id==b.dataset.id);
   pedirMotivo('Anular el cargo',`${esc(x.desc)}. No se borra: queda visible como anulado.`,'',m=>{x.estado='anulado';x.motivo=m;cur.p.sel=undefined;cur.p.abon=undefined;toast('Cargo anulado');render();});},
  imprimir(){const cp=cur.p.cp,v=vencidos(cp);modal('Aviso de deuda',`<p class="muted" style="margin-top:0">Se imprime sin registrar ningún cobro.</p><table><tbody>${v.map(x=>`<tr><td>${esc(x.desc)}</td><td class="num">${money(x.monto+pun(x).monto)}</td></tr>`).join('')}<tr><td><b>Total</b></td><td class="num"><b>${money(deuda(cp))}</b></td></tr></tbody></table>`,[{label:'Cerrar',primary:true}]);},
- confirmar(){const cp=cur.p.cp,ver=cur.p.adelantar?pend(cp):vencidos(cp),sel=cur.p.sel||ver.map(x=>x.id);let its=ver.filter(x=>sel.includes(x.id)).sort((a,b)=>a.vence<b.vence?-1:1);
+ confirmar(){const cp=cur.p.cp,ver=verCob(cp,cur.p),sel=cur.p.sel||ver.map(x=>x.id);let its=ver.filter(x=>sel.includes(x.id)).sort((a,b)=>a.vence<b.vence?-1:1);
   const tot=its.reduce((a,x)=>a+x.monto+pun(x).monto,0),ab=cur.p.abon??tot,forma=$('#forma').value,nota=$('#nota').value;
   const neg=its.filter(x=>x.monto<0);its=its.filter(x=>x.monto>0);let resto=ab-neg.reduce((a,x)=>a+x.monto,0);const plan=its.map(x=>{const p=pun(x).monto,need=x.monto+p,pay=Math.min(resto,need);resto-=pay;return {x,p,pay,need};}).filter(q=>q.pay>0);
   const queda=tot-ab;
@@ -559,7 +578,7 @@ const ACT={
  'ce-save'(){const cp=cur.p.cp,n=+$('#ce-cant').value,m=+$('#ce-mon').value,con=$('#ce-con').value,det=$('#ce-det').value,ef=$('#ce-inq').value;
   if(ef==='Sin efecto'){toast('Guardado: no le suma nada al inquilino');return;}
   ['2026-11','2026-12','2027-01','2027-02','2027-03','2027-04'].slice(0,n).forEach(x=>S.cargos.push({id:S.nextId++,carpeta:cp,mes:x,vence:x+'-10',estado:'pendiente',liq:[],ajustes:[],cuenta:con==='Expensas'?'Expensas':'Alquiler',desc:con+(det?' – '+det:'')+' '+mesTxt(x),monto:ef==='Descontar del pago'?-m:m}));
-  toast(n+' cargos creados. Se ven con "Adelantar período"');cur.p={cp,tab:'Datos principales',adelantar:true};render();},
+  toast(n+' cargos creados. Se ven con "Adelantar período"');cur.p={cp,tab:'Datos principales',ade:Math.min(n,maxAde(cp))};render();},
  'cc-save'(){const m=+$('#cc-m').value,g=$('#cc-g').value;const ks=[...document.querySelectorAll('[data-cc]')].filter(c=>c.checked).map(c=>c.dataset.cc);
   const pcts=ks.map(k=>+document.querySelector(`[data-ccp="${k}"]`).value),sum=pcts.reduce((a,b)=>a+b,0);if(!ks.length||sum!==100){toast('Los % tienen que sumar 100 (ahora suman '+sum+')');return;}
   ks.forEach((k,i)=>S.cargos.push({id:S.nextId++,carpeta:k,mes:'2026-11',vence:'2026-11-10',estado:'pendiente',liq:[],ajustes:[],cuenta:'Alquiler',desc:g+' ('+pcts[i]+'%)',monto:Math.round(m*pcts[i]/100)}));toast('Gasto repartido en '+ks.length+' contratos');},
@@ -604,6 +623,7 @@ const ACT={
 $('#home').onclick=()=>{stack=[];go('inicio',{},false);};
 $('#home').onkeydown=e=>{if(e.key==='Enter'){stack=[];go('inicio',{},false);}};
 $('#back').onclick=back;
+{const q=$('#q');q.oninput=()=>buscar(q.value);q.onkeydown=e=>{if(e.key==='Escape'){q.value='';buscar('');}if(e.key==='Enter'){const f=$('#res [data-go]');if(f)f.click();}};document.addEventListener('click',e=>{if(!e.target.closest('.topsearch'))$('#res').hidden=true;});}
 $('#helpt').onclick=()=>{ayudas=!ayudas;$('#helpt').textContent=ayudas?'Ocultar ayudas':'Mostrar ayudas';render();};
 $('#reset').onclick=()=>{S=semilla();stack=[];ayudas=true;$('#helpt').textContent='Ocultar ayudas';go('inicio',{},false);toast('Ejemplo reiniciado');};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=document.querySelector('.overlay');if(o)o.remove();}});
