@@ -333,6 +333,7 @@ const MI={
  pct:'<path d="M5 19L19 5" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2.5" fill="currentColor"/><circle cx="17" cy="17" r="2.5" fill="currentColor"/>',
  ppl:'<circle cx="9" cy="8" r="3.5" fill="currentColor"/><path d="M2 20c0-3.9 3.1-6 7-6s7 2.1 7 6z" fill="currentColor"/><circle cx="17" cy="9" r="2.5" fill="currentColor"/>',
  bld:'<path d="M4 21V5l8-3v19M12 21V9l8 3v9" fill="none" stroke="currentColor" stroke-width="2"/>',
+ key:'<circle cx="8" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 12h9M18 12v3M21 12v2" stroke="currentColor" stroke-width="2"/>',
  brief:'<rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2"/>'};
 const MENU=[
  [null,[['Inicio','home','inicio',{}],['Dashboard','dash','dashboard',{}]]],
@@ -340,7 +341,8 @@ const MENU=[
  ['Cobranza y caja',[['Estado de caja','caja','caja',{}],['Reporte de morosos','alert','morosos',{}],['Próximo período','next','prox',{}],['Cambio de período','cycle','cambio',{}]]],
  ['Propietarios',[['Liquidaciones pendientes','liq','liqpend',{}],['Honorarios','pct','honorarios',{}]]],
  ['Personas y propiedades',[['Inquilinos','ppl','inicio',{modo:'Inquilinos'}],['Propietarios','ppl','inicio',{modo:'Propietarios'}],['Propiedades','bld','inicio',{modo:'Stock'}]]],
- ['Gestión comercial',[['Ventas y captación','brief','comercial',{},true]]]];
+ ['Gestión comercial',[['Ventas y captación','brief','comercial',{},true]]],
+ ['Configuración',[['Usuarios y rangos','key','usuarios',{}]]]];
 function menu(){
  const on=(v,p)=>cur.v===v&&(v!=='inicio'||(cur.p.modo||'Contratos')===(p.modo||'Contratos'));
  $('#side').innerHTML=MENU.map(([g,its])=>(g?`<div class="grp">${g}</div>`:'')+its.map(([t,ic,v,p,soon])=>
@@ -351,7 +353,7 @@ function cerrarMenu(){$('#side').classList.remove('open');$('#scrim').classList.
 
 /* ======= navegación ======= */
 let stack=[],cur={v:'inicio',p:{}},ayudas=true;
-const TITULOS={inicio:'Inicio',dashboard:'Dashboard',nuevaprop:'Nueva propiedad',nuevocontrato:'Nuevo contrato',contratoia:'Contrato con IA',honorarios:'Honorarios',comercial:'Gestión comercial',cobranza:'Cobranza',contrato:'Contrato',persona:'Archivo de la persona',propiedad:'Archivo de la propiedad',cta:'Cuenta corriente',docs:'Documentos',acceso:'Acceso de la persona',caja:'Estado de caja',morosos:'Reporte de morosos',liqpend:'Liquidaciones pendientes',liquidacion:'Liquidación',prox:'Próximo período',vencer:'Contratos a vencer',cambio:'Cambio de período'};
+const TITULOS={inicio:'Inicio',dashboard:'Dashboard',nuevaprop:'Nueva propiedad',nuevocontrato:'Nuevo contrato',contratoia:'Contrato con IA',honorarios:'Honorarios',comercial:'Gestión comercial',usuarios:'Usuarios y rangos',cobranza:'Cobranza',contrato:'Contrato',persona:'Archivo de la persona',propiedad:'Archivo de la propiedad',cta:'Cuenta corriente',docs:'Documentos',acceso:'Acceso de la persona',caja:'Estado de caja',morosos:'Reporte de morosos',liqpend:'Liquidaciones pendientes',liquidacion:'Liquidación',prox:'Próximo período',vencer:'Contratos a vencer',cambio:'Cambio de período'};
 function go(v,p={},push=true){if(push)stack.push(cur);cur={v,p};render();window.scrollTo(0,0);}
 function back(){if(!stack.length){go('inicio',{},false);return;}cur=stack.pop();render();}
 function render(){
@@ -580,7 +582,7 @@ V.liquidacion=p=>{
  return `${help('El detalle de lo que se le paga al propietario: lo cobrado de cada contrato, menos el honorario y los gastos a su cargo. Si hay varios dueños, a cada uno le toca su %. Al confirmar sale el comprobante numerado.')}
  <div class="card"><h2>${nombre(o)}</h2><div class="scroll"><table><thead><tr><th>Carpeta</th><th>Concepto</th><th class="num">%</th><th class="num">Le corresponde</th></tr></thead><tbody>${it.map(q=>`<tr><td>${L(q.cp,'contrato',{cp:q.cp})}</td><td>${esc(q.x.desc)}</td><td class="num">${q.pct}%</td><td class="num">${money(q.monto)}</td></tr>`).join('')}</tbody></table></div>
  <div class="eq"><div><span>Total cobrado</span><span>${money(c)}</span></div><div><span>− Honorario 5% sobre el total</span><span>${money(-h)}</span></div>${gastos.map(g=>`<div><span>− ${esc(g.desc)}</span><span>${money(-g.monto)}</span></div>`).join('')}${red?`<div><span>Redondeo</span><span>${money(rn-neto)}</span></div>`:''}<div class="t"><span>Neto a pagar</span><span>${money(rn)}</span></div></div>
- <div class="row"><label class="field" style="max-width:220px"><span>Redondeo</span><select id="red"><option value="0">Sin redondeo</option><option value="10" ${red==10?'selected':''}>A decenas</option><option value="100" ${red==100?'selected':''}>A centenas</option><option value="1000" ${red==1000?'selected':''}>A miles</option></select></label></div>
+ <div class="row"><label class="field" style="max-width:220px"><span>Redondeo</span><select id="red"><option value="0">Sin redondeo</option><option value="10" ${red==10?'selected':''}>A decenas</option><option value="100" ${red==100?'selected':''}>A centenas</option><option value="1000" ${red==1000?'selected':''}>A miles</option><option value="10000" ${red==10000?'selected':''}>A 10 mil</option><option value="100000" ${red==100000?'selected':''}>A 100 mil</option></select></label></div>
  ${pers(o).cbu!=='Cargado'?'<span class="pill warn">Este propietario no tiene CBU cargado: se le paga en efectivo o hay que cargarlo.</span>':''}
  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="adelanto" data-id="${o}">Adelantar pago</button><button class="btn primary" type="button" data-act="liquidar" data-id="${o}" data-neto="${rn}" data-h="${h}" ${it.length?'':'disabled'}>Confirmar liquidación</button></div></div>`;
 };
@@ -662,6 +664,24 @@ V.honorarios=()=>{const rows=owners().map(o=>{const pend=Math.round(pendLiq(o).r
 V.comercial=()=>`${help('Ventas, captación de clientes, publicación en portales y tasaciones quedan fuera de la primera versión del CRM: ya tienen su propio camino. El menú queda reservado para sumarlos después.')}
  <div class="card" style="text-align:center;padding:40px 16px"><span class="pill warn" style="justify-self:center">Próximamente</span><h2>Gestión comercial</h2><p class="muted" style="max-width:60ch;margin:0 auto">Acá van a ir las ventas, la captación, la publicación en portales y las tasaciones. Las tablas de personas y propiedades ya quedan preparadas para engancharlas.</p></div>`;
 
+const AREAS=['Inicio y dashboard','Contratos y propiedades','Cobranza','Caja','Morosos y gestiones','Liquidaciones y honorarios','Personas','Acceso al portal','Usuarios y rangos'];
+const ACCS=['Ver','Cargar y editar','Cobrar o pagar','Anular y perdonar','Cerrar día y mes'];
+const APLICA={'Inicio y dashboard':[0],'Contratos y propiedades':[0,1,3],'Cobranza':[0,1,2,3],'Caja':[0,1,2,3,4],'Morosos y gestiones':[0,1],'Liquidaciones y honorarios':[0,1,2,3],'Personas':[0,1],'Acceso al portal':[0,1,3],'Usuarios y rangos':[0,1]};
+function initUsuarios(){if(S.rangos)return;const all=()=>Object.fromEntries(AREAS.map(a=>[a,APLICA[a].slice()]));
+ const enc=all();enc['Usuarios y rangos']=[];
+ const cob={'Inicio y dashboard':[0],'Contratos y propiedades':[0],'Cobranza':[0,1,2],'Caja':[0,1,2],'Morosos y gestiones':[0,1],'Liquidaciones y honorarios':[],'Personas':[0],'Acceso al portal':[0],'Usuarios y rangos':[]};
+ const con=Object.fromEntries(AREAS.map(a=>[a,a==='Usuarios y rangos'?[]:[0]]));
+ S.rangos={'Administrador':all(),'Encargado':enc,'Cobranza':cob,'Consulta':con};
+ S.cuentas=[{n:'Cuenta de ejemplo 1',mail:'admin@ejemplo.com',r:'Administrador'},{n:'Cuenta de ejemplo 2',mail:'encargado@ejemplo.com',r:'Encargado'},{n:'Cuenta de ejemplo 3',mail:'cobranza@ejemplo.com',r:'Cobranza'},{n:'Cuenta de ejemplo 4',mail:'consulta@ejemplo.com',r:'Consulta'}];}
+V.usuarios=p=>{initUsuarios();const rs=Object.keys(S.rangos),r=p.r&&S.rangos[p.r]?p.r:rs[0],lock=r==='Administrador';
+ return `${help('Solo para el admin. Cada cuenta tiene un rango, y el rango dice a qué áreas entra y qué puede hacer en cada una. Si cambiás un rango, cambian al instante todas las cuentas que lo tienen. Se sigue entrando por el hub y todo queda en la auditoría. Todavía no está en el sistema: se arma después del arranque.')}
+ <div class="card"><div class="sum"><h2>Rangos</h2><button class="btn" type="button" data-act="rg-nuevo">Nuevo rango</button></div>
+ <div class="tabs">${rs.map(x=>`<button type="button" class="tab${x===r?' on':''}" data-rg="${esc(x)}">${esc(x)} <span class="muted">${S.cuentas.filter(c=>c.r===x).length}</span></button>`).join('')}</div>
+ ${lock?'<p class="muted" style="margin:0">El rango Administrador tiene todo y no se puede recortar, para que nunca quede el sistema sin nadie que lo maneje.</p>':''}
+ <div class="scroll"><table><thead><tr><th>Área</th>${ACCS.map(a=>`<th>${a}</th>`).join('')}</tr></thead><tbody>${AREAS.map(a=>`<tr><td><b>${a}</b></td>${ACCS.map((_,i)=>APLICA[a].includes(i)?`<td><input type="checkbox" data-perm="${esc(a)}|${i}" ${S.rangos[r][a].includes(i)?'checked':''} ${lock?'disabled':''} aria-label="${a}: ${ACCS[i]}"></td>`:'<td class="muted">—</td>').join('')}</tr>`).join('')}</tbody></table></div></div>
+ <div class="card"><div class="sum"><h2>Cuentas</h2><button class="btn" type="button" data-act="cu-nueva">Agregar cuenta</button></div>
+ <table><thead><tr><th>Nombre</th><th>Usuario del hub</th><th>Rango</th></tr></thead><tbody>${S.cuentas.map((c,i)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.mail)}</td><td><select data-cu="${i}" aria-label="Rango de ${esc(c.n)}" style="max-width:220px">${rs.map(x=>`<option ${x===c.r?'selected':''}>${esc(x)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`;};
+
 /* ======= recibo / visor ======= */
 function verRecibo(n){const r=S.recibos.find(x=>x.n==n);
  modal('Recibo '+String(r.n).padStart(4,'0'),`<div class="sum"><div><div class="lbl">Parra Propiedades · Florencio Varela</div><b>${L('Carpeta '+r.carpeta,'contrato',{cp:r.carpeta})}</b><div>${nombre(C(r.carpeta).inq)}</div><div>${L(esc(prop(r.carpeta).dir),'propiedad',{pr:C(r.carpeta).prop})}</div><div class="muted">${fdate(r.fecha)} · ${r.forma}</div></div><div class="qr" role="img" aria-label="Código QR de verificación"></div></div>
@@ -687,6 +707,12 @@ function bind(){
  const ab=$('#abon');if(ab)ab.oninput=()=>{cur.p.abon=ab.value===''?undefined:+ab.value;};
  const ct=$('#contado');if(ct)ct.onchange=()=>{cur.p={...cur.p,contado:+ct.value};render();};
  const fq=$('#fq');if(fq){const ap=()=>{const t=fq.value.trim().toLowerCase().replace(/\./g,'');cur.p.f=fq.value;let n=0;document.querySelectorAll('tr[data-s]').forEach(r=>{const ok=!t||r.dataset.s.replace(/\./g,'').includes(t);r.hidden=!ok;if(ok)n++;});$('#fnone').hidden=n>0;};fq.oninput=ap;fq.onkeydown=e=>{if(e.key==='Escape'){fq.value='';ap();}};ap();}
+ document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>{cur.p={r:b.dataset.rg};render();});
+ document.querySelectorAll('[data-perm]').forEach(c=>c.onchange=()=>{const [a,i]=c.dataset.perm.split('|'),r=cur.p.r||Object.keys(S.rangos)[0],l=S.rangos[r][a];
+  if(c.checked){if(!l.includes(+i))l.push(+i);}else S.rangos[r][a]=l.filter(x=>x!==+i);toast('Rango '+r+' actualizado: aplica a '+S.cuentas.filter(q=>q.r===r).length+' cuentas');});
+ document.querySelectorAll('[data-cu]').forEach(sl=>sl.onchange=()=>{const c=S.cuentas[+sl.dataset.cu];
+  if(c.r==='Administrador'&&S.cuentas.filter(q=>q.r==='Administrador').length===1){sl.value='Administrador';toast('Tiene que quedar al menos una cuenta Administrador');return;}
+  c.r=sl.value;toast(c.n+' ahora se rige por el rango '+c.r);render();});
  const ha=$('#hastames');if(ha)ha.onchange=()=>{cur.p={...cur.p,ade:+ha.value,sel:undefined,abon:undefined};render();};
  const rd=$('#red');if(rd)rd.onchange=()=>{cur.p={...cur.p,red:+rd.value};render();};
  
@@ -702,6 +728,10 @@ function crearContrato(pr,inq,gar,desde,cuo,alq,dep){const cp=sigCarpeta();const
  const pad=v=>String(v).padStart(2,'0');S.C[cp]={prop:pr,inq,gar:gar?[gar]:[],seguro:gar?null:'Caución (a cargar)',desde:desde+'-01',hasta:`${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`,cuotas:cuo,indice:'IPC',cada:6,alq,dep,tipo:S.PR[pr].tipo==='Local comercial'?'Comercial':'Vivienda',exp:0,iva:false};
  if(desde<='2026-11')genFuturo(cp,'2026-11');return cp;}
 const ACT={
+ 'rg-nuevo'(){modal('Nuevo rango','<label class="field"><span>Nombre del rango</span><input id="rg-n" placeholder="Ej.: Atención al público"></label><p class="muted">Arranca con los permisos de Consulta (solo ver) y después marcás lo que quieras.</p>',
+  [{label:'Cancelar'},{label:'Crear',primary:true,fn:o=>{const n=o.querySelector('#rg-n').value.trim();if(!n||S.rangos[n]){toast(n?'Ya existe ese rango':'Falta el nombre');return false;}S.rangos[n]=JSON.parse(JSON.stringify(S.rangos['Consulta']));cur.p={r:n};},after:()=>render()}]);},
+ 'cu-nueva'(){modal('Agregar cuenta',`<label class="field"><span>Nombre</span><input id="cu-n"></label><label class="field"><span>Usuario del hub (mail)</span><input id="cu-m"></label><label class="field"><span>Rango</span><select id="cu-r">${Object.keys(S.rangos).map(x=>`<option>${esc(x)}</option>`).join('')}</select></label><p class="muted">La persona entra con su usuario del hub; desde acá solo se le da el rango.</p>`,
+  [{label:'Cancelar'},{label:'Agregar',primary:true,fn:o=>{const n=o.querySelector('#cu-n').value.trim();if(!n){toast('Falta el nombre');return false;}S.cuentas.push({n,mail:o.querySelector('#cu-m').value||'—',r:o.querySelector('#cu-r').value});},after:()=>{toast('Cuenta agregada');render();}}]);},
  'np-save'(){const c=$('#np-calle').value.trim(),n=$('#np-num').value.trim();if(!c||!n){toast('Faltan la calle o el número');return;}
   const k='P'+(Object.keys(S.PR).length+1+Math.floor(Math.random()*900));const pd=$('#np-pd').value.trim();
   S.PR[k]={dir:c+' '+n+(pd?', '+pd:''),loc:$('#np-loc').value,hub:'PARRA-0'+(200+Object.keys(S.PR).length),tipo:$('#np-tipo').value,partida:$('#np-par').value||'—',luz:$('#np-luz').value||'—',agua:$('#np-agua').value||'—',due:[[$('#np-o1').value,+$('#np-p1').value||100]]};
