@@ -146,10 +146,40 @@ input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--accent);tra
   .modal{padding:14px}.modal .actions .btn{flex:1 1 auto}
   .tot b{font-size:16px}
 }
+.shell{display:grid;grid-template-columns:248px minmax(0,1fr);align-items:start}
+.side{position:sticky;top:var(--toph,57px);height:calc(100vh - var(--toph,57px));overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:12px 10px 24px max(10px,env(safe-area-inset-left,0px));display:grid;align-content:start;gap:2px}
+.side .grp{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:14px 10px 4px}
+.side button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:8px 10px;color:var(--fg);cursor:pointer;font-size:14px}
+.side button:hover{background:var(--soft)}
+.side button.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.side button svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.side button.on svg{color:var(--accent)}
+.side button .soon{margin-left:auto;font:500 10px var(--mono);color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:1px 6px}
+.side button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+#menu{display:none}
+.scrim{display:none}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.kpi button{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:left;cursor:pointer;display:grid;gap:2px;color:var(--fg)}
+.kpi button:hover{border-color:var(--accent)}
+.kpi b{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px;color:var(--muted)}
+.bar{height:8px;border-radius:4px;background:var(--soft);overflow:hidden}.bar span{display:block;height:100%;background:var(--accent)}
+.conf{font-size:11.5px}
+.split2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pdf .hl{background:var(--note-line)}
+@media (max-width:1000px){
+  .shell{display:block}
+  #menu{display:inline-flex}
+  .side{position:fixed;left:0;top:0;bottom:0;height:auto;width:min(290px,85vw);z-index:15;transform:translateX(-105%);transition:transform .2s;box-shadow:0 0 24px #0003;padding-top:calc(16px + env(safe-area-inset-top,0px))}
+  .side.open{transform:none}
+  .scrim.open{display:block;position:fixed;inset:0;background:#0006;z-index:14}
+  .split2{grid-template-columns:1fr}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <header class="top"><div class="in">
+  <button class="btn sm ghost" id="menu" type="button" aria-label="Abrir el menú" aria-controls="side" aria-expanded="false">☰ Menú</button>
   <span class="brand" id="home" role="button" tabindex="0">CRM Parra<small>Prototipo</small></span>
   <span class="crumb" id="crumb"></span>
   <span class="sp">
@@ -158,7 +188,8 @@ input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--accent);tra
     <button class="btn sm ghost" id="reset" type="button">Reiniciar ejemplo</button>
   </span>
 </div></header>
-<main><div class="wrap" id="app"></div></main>
+<div class="shell"><nav class="side" id="side" aria-label="Menú principal"></nav><div class="scrim" id="scrim"></div>
+<main><div class="wrap" id="app"></div></main></div>
 
 <script>
 (function(){
@@ -286,16 +317,48 @@ function genFuturo(cp,lim){const c=C(cp);let m='2026-11',aj=false;
 function verCob(cp,p){const ade=p.ade||0;if(!ade)return vencidos(cp);const lim=addMes('2026-10',ade);genFuturo(cp,lim);
  return pend(cp).filter(x=>d(x.vence)<=HOY||x.mes<=lim).sort((a,b)=>a.vence<b.vence?-1:a.vence>b.vence?1:a.id-b.id);}
 
+/* ======= menú lateral ======= */
+const MI={
+ home:'<path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z" fill="currentColor"/>',
+ dash:'<path d="M4 20V10h4v10zm6 0V4h4v16zm6 0v-7h4v7z" fill="currentColor"/>',
+ prop:'<path d="M3 11l9-7 9 7v9H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10v6M9 13h6" stroke="currentColor" stroke-width="2"/>',
+ cont:'<path d="M6 2h8l5 5v15H6z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M9 14h6" stroke="currentColor" stroke-width="2"/>',
+ ia:'<path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z" fill="currentColor"/>',
+ cal:'<rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2"/>',
+ caja:'<rect x="2" y="6" width="20" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12.5" r="3" fill="currentColor"/>',
+ alert:'<path d="M12 3l10 18H2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10v5M12 17v1" stroke="currentColor" stroke-width="2"/>',
+ next:'<path d="M5 12h12M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/>',
+ cycle:'<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2"/>',
+ liq:'<path d="M4 7h16v10H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2"/>',
+ pct:'<path d="M5 19L19 5" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2.5" fill="currentColor"/><circle cx="17" cy="17" r="2.5" fill="currentColor"/>',
+ ppl:'<circle cx="9" cy="8" r="3.5" fill="currentColor"/><path d="M2 20c0-3.9 3.1-6 7-6s7 2.1 7 6z" fill="currentColor"/><circle cx="17" cy="9" r="2.5" fill="currentColor"/>',
+ bld:'<path d="M4 21V5l8-3v19M12 21V9l8 3v9" fill="none" stroke="currentColor" stroke-width="2"/>',
+ brief:'<rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2"/>'};
+const MENU=[
+ [null,[['Inicio','home','inicio',{}],['Dashboard','dash','dashboard',{}]]],
+ ['Alquileres',[['Nueva propiedad','prop','nuevaprop',{}],['Nuevo contrato','cont','nuevocontrato',{}],['Contrato con IA','ia','contratoia',{}],['Contratos a vencer','cal','vencer',{}]]],
+ ['Cobranza y caja',[['Estado de caja','caja','caja',{}],['Reporte de morosos','alert','morosos',{}],['Próximo período','next','prox',{}],['Cambio de período','cycle','cambio',{}]]],
+ ['Propietarios',[['Liquidaciones pendientes','liq','liqpend',{}],['Honorarios','pct','honorarios',{}]]],
+ ['Personas y propiedades',[['Inquilinos','ppl','inicio',{modo:'Inquilinos'}],['Propietarios','ppl','inicio',{modo:'Propietarios'}],['Propiedades','bld','inicio',{modo:'Stock'}]]],
+ ['Gestión comercial',[['Ventas y captación','brief','comercial',{},true]]]];
+function menu(){
+ const on=(v,p)=>cur.v===v&&(v!=='inicio'||(cur.p.modo||'Contratos')===(p.modo||'Contratos'));
+ $('#side').innerHTML=MENU.map(([g,its])=>(g?`<div class="grp">${g}</div>`:'')+its.map(([t,ic,v,p,soon])=>
+  `<button type="button" class="${on(v,p)?'on':''}" data-mv="${v}" data-mp='${esc(JSON.stringify(p))}'${on(v,p)?' aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${MI[ic]}</svg>${t}${soon?'<span class="soon">Próximamente</span>':''}</button>`).join('')).join('');
+ $('#side').querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{cerrarMenu();const v=b.dataset.mv,pp=JSON.parse(b.dataset.mp);if(v==='inicio'){stack=[];cur={v,p:pp};render();window.scrollTo(0,0);}else go(v,pp);});
+}
+function cerrarMenu(){$('#side').classList.remove('open');$('#scrim').classList.remove('open');$('#menu').setAttribute('aria-expanded','false');}
+
 /* ======= navegación ======= */
 let stack=[],cur={v:'inicio',p:{}},ayudas=true;
-const TITULOS={inicio:'Inicio',cobranza:'Cobranza',contrato:'Contrato',persona:'Archivo de la persona',propiedad:'Archivo de la propiedad',cta:'Cuenta corriente',docs:'Documentos',acceso:'Acceso de la persona',caja:'Estado de caja',morosos:'Reporte de morosos',liqpend:'Liquidaciones pendientes',liquidacion:'Liquidación',prox:'Próximo período',vencer:'Contratos a vencer',cambio:'Cambio de período'};
+const TITULOS={inicio:'Inicio',dashboard:'Dashboard',nuevaprop:'Nueva propiedad',nuevocontrato:'Nuevo contrato',contratoia:'Contrato con IA',honorarios:'Honorarios',comercial:'Gestión comercial',cobranza:'Cobranza',contrato:'Contrato',persona:'Archivo de la persona',propiedad:'Archivo de la propiedad',cta:'Cuenta corriente',docs:'Documentos',acceso:'Acceso de la persona',caja:'Estado de caja',morosos:'Reporte de morosos',liqpend:'Liquidaciones pendientes',liquidacion:'Liquidación',prox:'Próximo período',vencer:'Contratos a vencer',cambio:'Cambio de período'};
 function go(v,p={},push=true){if(push)stack.push(cur);cur={v,p};render();window.scrollTo(0,0);}
 function back(){if(!stack.length){go('inicio',{},false);return;}cur=stack.pop();render();}
 function render(){
  const sub=cur.p.cp?' · carpeta '+cur.p.cp:cur.p.id&&S.P[cur.p.id]?' · '+S.P[cur.p.id].n:cur.p.pr?' · '+S.PR[cur.p.pr].dir:'';
  $('#crumb').textContent=TITULOS[cur.v]+sub;
  $('#back').hidden=cur.v==='inicio';
- $('#app').innerHTML=V[cur.v](cur.p);
+ $('#app').innerHTML=V[cur.v](cur.p);menu();
  document.querySelectorAll('#app table').forEach(t=>{const hs=[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim());if(!hs.length)return;t.classList.add('resp');
   t.querySelectorAll('tbody tr').forEach(tr=>[...tr.children].forEach((td,i)=>{if(!td.hasAttribute('colspan'))td.dataset.label=hs[i]||'';}));});
  bind();
@@ -545,6 +608,60 @@ V.cambio=()=>{
  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="avisoaum">Avisar aumentos</button><button class="btn primary" type="button" data-act="generar" ${S.generadoDic?'disabled':''}>${S.generadoDic?'Cuotas de diciembre generadas':'Generar cuotas de diciembre'}</button></div></div>`;
 };
 
+V.dashboard=()=>{
+ const oct=S.cargos.filter(x=>x.mes==='2026-10'&&x.monto>0&&x.estado!=='anulado'),aCob=oct.reduce((a,x)=>a+x.monto,0),cob=oct.filter(x=>x.estado==='pagado').reduce((a,x)=>a+x.monto,0);
+ const pc=aCob?Math.round(cob/aCob*100):0,ms=morosos(),dt=ms.reduce((a,cp)=>a+deuda(cp),0);
+ const liq=owners().reduce((a,o)=>a+pendLiq(o).reduce((s,q)=>s+q.monto,0),0)*.95,aj=ajustesDic().length,v90=aVencer(90);
+ return `${help('El tablero del mes responde de un vistazo quién tiene que pagar, quién debe y qué hay que liquidar. Cada número se puede tocar para ir al detalle.')}
+ <div class="kpi"><button type="button" data-go="morosos" data-p="{}"><span class="lbl">A cobrar en octubre</span><b>${money(aCob)}</b><span>${oct.length} cargos</span></button>
+ <button type="button" data-go="caja" data-p="{}"><span class="lbl">Cobrado</span><b>${money(cob)}</b><span>${pc}% de lo del mes</span><div class="bar"><span style="width:${pc}%"></span></div></button>
+ <button type="button" data-go="morosos" data-p="{}"><span class="lbl">Deuda vencida</span><b>${money(dt)}</b><span>${ms.length} contratos deben</span></button>
+ <button type="button" data-go="liqpend" data-p="{}"><span class="lbl">A liquidar</span><b>${money(liq)}</b><span>neto a propietarios</span></button>
+ <button type="button" data-go="cambio" data-p="{}"><span class="lbl">Ajustes de diciembre</span><b>${aj}</b><span>para aprobar</span></button>
+ <button type="button" data-go="vencer" data-p="{}"><span class="lbl">Por vencer</span><b>${v90.length}</b><span>en los próximos 90 días</span></button></div>
+ <div class="grid2"><div class="card"><h3>Los que más deben</h3><table><thead><tr><th>Carpeta</th><th>Inquilino</th><th class="num">Deuda</th></tr></thead><tbody>${ms.sort((a,b)=>deuda(b)-deuda(a)).slice(0,5).map(cp=>`<tr><td>${L(cp,'contrato',{cp})}</td><td>${nombre(C(cp).inq)}</td><td class="num">${money(deuda(cp))}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">Nadie debe.</td></tr>'}</tbody></table></div>
+ <div class="card"><h3>Vencen pronto</h3><table><thead><tr><th>Carpeta</th><th>Inquilino</th><th>Termina</th></tr></thead><tbody>${v90.map(cp=>`<tr><td>${L(cp,'contrato',{cp})}</td><td>${nombre(C(cp).inq)}</td><td>${fdate(C(cp).hasta)}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">Ninguno en 90 días.</td></tr>'}</tbody></table></div></div>`;
+};
+
+const optPers=(pref,sel)=>Object.keys(S.P).filter(k=>pref.includes(k[0])).map(k=>`<option value="${k}" ${k===sel?'selected':''}>${esc(pers(k).n)}</option>`).join('');
+V.nuevaprop=()=>`${help('Alta de una propiedad administrada. Se carga la dirección en partes (así se puede buscar y ordenar por calle) y los propietarios con su %. En el CRM, si la propiedad no está en el hub, se crea ahí como borrador.')}
+ <div class="card"><h2>Nueva propiedad</h2>
+ <div class="grid3"><label class="field"><span>Calle</span><input id="np-calle" placeholder="Ej.: Monteagudo"></label><label class="field"><span>Número</span><input id="np-num" placeholder="2400"></label>
+ <label class="field"><span>Piso y depto</span><input id="np-pd" placeholder="3° B"></label><label class="field"><span>Localidad</span><input id="np-loc" value="Florencio Varela"></label>
+ <label class="field"><span>Tipo</span><select id="np-tipo"><option>Casa</option><option>Departamento</option><option>Local comercial</option></select></label>
+ <label class="field"><span>Partida</span><input id="np-par" placeholder="120-045"></label><label class="field"><span>N° de cliente de luz</span><input id="np-luz"></label><label class="field"><span>N° de cliente de agua</span><input id="np-agua"></label></div>
+ <h3>Propietarios</h3><div class="grid3"><label class="field"><span>Propietario</span><select id="np-o1">${optPers('O')}</select></label><label class="field"><span>%</span><input id="np-p1" type="number" value="100"></label></div>
+ <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" data-act="np-save">Guardar propiedad</button></div></div>`;
+
+const sigCarpeta=()=>'99-'+(Math.max(...Object.keys(S.C).map(k=>+k.slice(3)))+1);
+V.nuevocontrato=p=>{const pr=p.pr||Object.keys(S.PR)[0];return `${help('Alta manual de un contrato. Toma el número de carpeta siguiente. Todos se ajustan por IPC y llevan 0,5% diario de punitorio. Si tenés el contrato firmado, es más rápido "Contrato con IA".')}
+ <div class="card"><div class="sum"><h2>Nuevo contrato</h2><span class="pill info">Carpeta ${sigCarpeta()}</span></div>
+ <div class="grid3"><label class="field"><span>Propiedad</span><select id="nc-pr">${Object.entries(S.PR).map(([k,r])=>`<option value="${k}" ${k===pr?'selected':''}>${esc(r.dir)}</option>`).join('')}</select></label>
+ <label class="field"><span>Inquilino</span><select id="nc-inq"><option value="nuevo">+ Persona nueva</option>${optPers('I')}</select></label>
+ <label class="field"><span>Nombre (si es nueva)</span><input id="nc-nom" placeholder="Nombre y apellido"></label><label class="field"><span>DNI (si es nueva)</span><input id="nc-dni" placeholder="30.000.000"></label>
+ <label class="field"><span>Garante</span><select id="nc-gar"><option value="">Seguro de caución</option>${optPers('GIO')}</select></label>
+ <label class="field"><span>Desde</span><input id="nc-desde" type="month" value="2026-11"></label><label class="field"><span>Cuotas</span><select id="nc-cuo"><option>24</option><option selected>36</option></select></label>
+ <label class="field"><span>Alquiler ($)</span><input id="nc-alq" type="number" value="450000" step="5000"></label><label class="field"><span>Depósito ($)</span><input id="nc-dep" type="number" value="450000" step="10000"></label></div>
+ <div class="row muted" style="font-size:13px">Ajuste IPC cada 6 meses · vence el día 10 · punitorio 0,5% diario</div>
+ <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" data-act="nc-save">Crear contrato</button></div></div>`;};
+
+V.contratoia=p=>{if(!p.leido)return `${help('Se sube el contrato firmado (PDF o fotos) y la IA llena la ficha. Nada entra solo: una persona revisa lo que la IA marca en amarillo y aprueba.')}
+ <div class="card" style="text-align:center;padding:40px 16px"><h2>Subí el contrato firmado</h2><p class="muted">PDF o fotos de las hojas. En el prototipo se usa un contrato de ejemplo.</p><div class="row" style="justify-content:center"><button class="btn primary" type="button" data-act="ia-leer">Usar contrato de ejemplo</button></div></div>`;
+ const f=p.leido;return `${help('A la izquierda el contrato con la frase de donde salió cada dato; a la derecha la ficha que armó la IA. Lo dudoso está en amarillo: revisalo antes de aprobar.')}
+ <div class="split2"><div class="card"><h3>Contrato firmado</h3><div class="pdf"><span class="h"></span><span></span><span class="hl"></span><span></span><span class="s"></span><span class="hl"></span><span></span><span class="s"></span><span class="hl"></span><span></span></div><p class="muted" style="margin:0">Las líneas resaltadas son las frases que usó la IA.</p></div>
+ <div class="card"><h3>Ficha propuesta</h3>
+ ${[['Propiedad',esc(S.PR[f.pr].dir),'alta'],['Locatario',esc(f.nom)+' · DNI '+f.dni,'alta'],['Desde',fdate(f.desde+'-01'),'alta'],['Cuotas',f.cuo,'alta'],['Alquiler inicial',money(f.alq),'alta'],['Depósito',money(f.dep),'media'],['Garante',esc(f.gar),'baja'],['Índice','IPC cada 6 meses','media']].map(r=>`<div class="sum" style="padding:6px 0;border-bottom:1px dashed var(--line)${r[2]==='baja'?';background:var(--note)':''}"><span class="muted">${r[0]}</span><span>${r[1]} <span class="pill ${r[2]==='alta'?'good':r[2]==='media'?'info':'warn'} conf">${r[2]==='baja'?'revisar':'confianza '+r[2]}</span></span></div>`).join('')}
+ <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="ia-otro">Leer otro</button><button class="btn primary" type="button" data-act="ia-ok">Aprobar y crear contrato</button></div></div></div>`;};
+
+V.honorarios=()=>{const rows=owners().map(o=>{const pend=Math.round(pendLiq(o).reduce((a,q)=>a+q.monto,0)*.05),hecho=S.liqs.filter(l=>l.owner===o).reduce((a,l)=>a+(l.h||0),0);return {o,pend,hecho};});
+ const th=rows.reduce((a,r)=>a+r.hecho,0),tp=rows.reduce((a,r)=>a+r.pend,0);
+ return `${help('Lo que gana la inmobiliaria por administrar: el 5% de cada liquidación. Sirve para facturar los honorarios del mes.')}
+ <div class="kpi"><div class="card"><span class="lbl">Cobrados en liquidaciones de hoy</span><b style="font-family:var(--display);font-size:22px">${money(th)}</b></div><div class="card"><span class="lbl">Por cobrar al liquidar lo pendiente</span><b style="font-family:var(--display);font-size:22px">${money(tp)}</b></div></div>
+ <div class="card"><table><thead><tr><th>Propietario</th><th class="num">Ya liquidado</th><th class="num">Pendiente</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${nombre(r.o)}</td><td class="num">${money(r.hecho)}</td><td class="num">${money(r.pend)}</td><td>${r.pend?L('Liquidar','liquidacion',{id:r.o},'btn sm'):''}</td></tr>`).join('')}</tbody></table></div>`;};
+
+V.comercial=()=>`${help('Ventas, captación de clientes, publicación en portales y tasaciones quedan fuera de la primera versión del CRM: ya tienen su propio camino. El menú queda reservado para sumarlos después.')}
+ <div class="card" style="text-align:center;padding:40px 16px"><span class="pill warn" style="justify-self:center">Próximamente</span><h2>Gestión comercial</h2><p class="muted" style="max-width:60ch;margin:0 auto">Acá van a ir las ventas, la captación, la publicación en portales y las tasaciones. Las tablas de personas y propiedades ya quedan preparadas para engancharlas.</p></div>`;
+
 /* ======= recibo / visor ======= */
 function verRecibo(n){const r=S.recibos.find(x=>x.n==n);
  modal('Recibo '+String(r.n).padStart(4,'0'),`<div class="sum"><div><div class="lbl">Parra Propiedades · Florencio Varela</div><b>${L('Carpeta '+r.carpeta,'contrato',{cp:r.carpeta})}</b><div>${nombre(C(r.carpeta).inq)}</div><div>${L(esc(prop(r.carpeta).dir),'propiedad',{pr:C(r.carpeta).prop})}</div><div class="muted">${fdate(r.fecha)} · ${r.forma}</div></div><div class="qr" role="img" aria-label="Código QR de verificación"></div></div>
@@ -581,7 +698,20 @@ function buscar(t){const r=$('#res');t=t.trim().toLowerCase();if(!t){r.hidden=tr
  r.innerHTML=out.length?out.slice(0,12).map(o=>`<button type="button" data-go="${o[2]}" data-p='${esc(JSON.stringify(o[3]))}'><span class="k">${o[0]}</span><span>${esc(o[1])}</span></button>`).join(''):'<div class="empty">Sin resultados</div>';
  r.hidden=false;r.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go,JSON.parse(b.dataset.p)));}
 
+function crearContrato(pr,inq,gar,desde,cuo,alq,dep){const cp=sigCarpeta();const ini=new Date(desde+'-01T12:00:00'),h=new Date(ini.getFullYear(),ini.getMonth()+cuo,0);
+ const pad=v=>String(v).padStart(2,'0');S.C[cp]={prop:pr,inq,gar:gar?[gar]:[],seguro:gar?null:'Caución (a cargar)',desde:desde+'-01',hasta:`${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`,cuotas:cuo,indice:'IPC',cada:6,alq,dep,tipo:S.PR[pr].tipo==='Local comercial'?'Comercial':'Vivienda',exp:0,iva:false};
+ if(desde<='2026-11')genFuturo(cp,'2026-11');return cp;}
 const ACT={
+ 'np-save'(){const c=$('#np-calle').value.trim(),n=$('#np-num').value.trim();if(!c||!n){toast('Faltan la calle o el número');return;}
+  const k='P'+(Object.keys(S.PR).length+1+Math.floor(Math.random()*900));const pd=$('#np-pd').value.trim();
+  S.PR[k]={dir:c+' '+n+(pd?', '+pd:''),loc:$('#np-loc').value,hub:'PARRA-0'+(200+Object.keys(S.PR).length),tipo:$('#np-tipo').value,partida:$('#np-par').value||'—',luz:$('#np-luz').value||'—',agua:$('#np-agua').value||'—',due:[[$('#np-o1').value,+$('#np-p1').value||100]]};
+  toast('Propiedad creada');go('propiedad',{pr:k},false);},
+ 'nc-save'(){let inq=$('#nc-inq').value;if(inq==='nuevo'){const n=$('#nc-nom').value.trim();if(!n){toast('Falta el nombre del inquilino');$('#nc-nom').focus();return;}inq='I'+(100+Object.keys(S.P).length);S.P[inq]={n,dni:$('#nc-dni').value||'—',tel:'—',mail:'',lab:''};}
+  const cp=crearContrato($('#nc-pr').value,inq,$('#nc-gar').value,$('#nc-desde').value||'2026-11',+$('#nc-cuo').value,+$('#nc-alq').value,+$('#nc-dep').value);toast('Contrato creado en la carpeta '+cp);go('contrato',{cp},false);},
+ 'ia-leer'(){const prs=Object.keys(S.PR);const NOM=['Agustina Paz','Bruno Salas','Camila Ferreyra','Daniel Quiroga','Estefanía Rey'];
+  cur.p={leido:{pr:prs[Math.floor(Math.random()*prs.length)],nom:NOM[Math.floor(Math.random()*NOM.length)],dni:(20+Math.floor(Math.random()*25))+'.'+String(Math.floor(Math.random()*1000)).padStart(3,'0')+'.'+String(Math.floor(Math.random()*1000)).padStart(3,'0'),desde:'2026-12',cuo:36,alq:Math.round((300000+Math.random()*400000)/5000)*5000,dep:400000,gar:'Garante con recibo de sueldo (leer de nuevo)'}};render();},
+ 'ia-otro'(){ACT['ia-leer']();},
+ 'ia-ok'(){const f=cur.p.leido,inq='I'+(100+Object.keys(S.P).length);S.P[inq]={n:f.nom,dni:f.dni,tel:'—',mail:'',lab:''};const cp=crearContrato(f.pr,inq,'',f.desde,f.cuo,f.alq,f.dep);toast('Contrato aprobado en la carpeta '+cp);go('contrato',{cp},false);},
  hidehelp(){ayudas=false;$('#helpt').textContent='Mostrar ayudas';render();},
  atrasar(){cur.p={...cur.p,atrasar:!cur.p.atrasar};render();},
  adelantar(){cur.p={...cur.p,ade:Math.min((cur.p.ade||0)+1,maxAde(cur.p.cp)),sel:undefined,abon:undefined};render();},
@@ -644,7 +774,7 @@ const ACT={
   const upd=()=>{const n=+document.querySelector('#a-n').value;document.querySelector('#a-prev').textContent=n+' cuotas de '+money(t/n)+' (sin interés en el ejemplo).';};upd();document.querySelector('#a-n').onchange=upd;},
  adelanto(b){modal('Adelantar pago',`<p style="margin-top:0">Se le da plata al propietario antes de que pague el inquilino, y se descuenta en la próxima liquidación.</p><label class="field"><span>Monto ($)</span><input id="ad-m" type="number" value="100000"></label>`,[{label:'Cancelar'},{label:'Guardar',primary:true,fn:o=>{S.gastosProp.push({owner:b.dataset.id,desc:'Adelanto del 29/10',monto:+o.querySelector('#ad-m').value});S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:b.dataset.id,concepto:'Adelanto',entrada:0,salida:+o.querySelector('#ad-m').value,forma:'Efectivo'});},after:()=>{toast('Adelanto guardado: se descuenta abajo');render();}}]);},
  liquidar(b){const o=b.dataset.id,neto=+b.dataset.neto,h=+b.dataset.h;pendLiq(o).forEach(q=>q.x.liq.push(o));S.gastosProp.filter(g=>g.owner===o).forEach(g=>g.liq=true);
-  const l={n:S.nextLiq++,owner:o,neto};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:o,concepto:'Liquidación '+String(l.n).padStart(4,'0'),entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
+  const l={n:S.nextLiq++,owner:o,neto,h};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:o,concepto:'Liquidación '+String(l.n).padStart(4,'0'),entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
   S.caja.push({fecha:'2026-10-29',cuenta:'Honorarios',per:o,concepto:'Honorario 5%',entrada:h,salida:0,forma:'—'});
   modal('Comprobante de liquidación '+String(l.n).padStart(4,'0'),`<div class="sum"><div><b>${nombre(o)}</b><div class="muted">29/10/2026</div><div style="margin-top:8px">Neto pagado: <b>${money(neto)}</b></div></div><div class="qr" role="img" aria-label="Código QR"></div></div>`,[{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Listo',primary:true}]);go('liqpend',{},false);},
  avisoaum(){const n=Object.values(S.aprobados).filter(Boolean).length;toast(n?'Se avisaría el aumento a '+n+' inquilinos por WhatsApp':'Primero aprobá algún aumento');},
@@ -655,9 +785,12 @@ const ACT={
 $('#home').onclick=()=>{stack=[];go('inicio',{},false);};
 $('#home').onkeydown=e=>{if(e.key==='Enter'){stack=[];go('inicio',{},false);}};
 $('#back').onclick=back;
+$('#menu').onclick=()=>{const o=!$('#side').classList.contains('open');$('#side').classList.toggle('open',o);$('#scrim').classList.toggle('open',o);$('#menu').setAttribute('aria-expanded',String(o));};
+$('#scrim').onclick=cerrarMenu;
+const setTop=()=>document.documentElement.style.setProperty('--toph',$('.top').offsetHeight+'px');setTop();window.addEventListener('resize',setTop);
 $('#helpt').onclick=()=>{ayudas=!ayudas;$('#helpt').textContent=ayudas?'Ocultar ayudas':'Mostrar ayudas';render();};
 $('#reset').onclick=()=>{S=semilla();stack=[];ayudas=true;$('#helpt').textContent='Ocultar ayudas';go('inicio',{},false);toast('Ejemplo reiniciado');};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=document.querySelector('.overlay');if(o)o.remove();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const o=document.querySelector('.overlay');if(o)o.remove();else cerrarMenu();}});
 render();
 })();
 </script>
