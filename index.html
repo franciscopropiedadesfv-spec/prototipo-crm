@@ -294,6 +294,9 @@ function pendLiq(owner){
  const out=[];for(const [cp] of Object.entries(S.C)){const sh=dueños(cp).find(x=>x[0]===owner);if(!sh)continue;
   for(const x of S.cargos)if(x.carpeta===cp&&x.estado==='pagado'&&x.monto>0&&!x.liq.includes(owner))out.push({x,cp,pct:sh[1],monto:Math.round(x.monto*sh[1]/100)});}
  return out;}
+const cpsDe=o=>Object.keys(S.C).filter(cp=>dueños(cp).some(x=>x[0]===o));
+function sinCobrar(o,cp){const sh=dueños(cp).find(x=>x[0]===o);if(!sh)return [];
+ return S.cargos.filter(x=>x.carpeta===cp&&x.estado==='pendiente'&&x.monto>0&&d(x.vence)<=HOY&&!x.liq.includes(o)).map(x=>({x,cp,pct:sh[1],monto:Math.round(x.monto*sh[1]/100)}));}
 const estado=cp=>{const dl=deuda(cp);if(dl>0)return S.cargos.some(x=>x.carpeta===cp&&x.estado==='pendiente'&&/\(saldo\)/.test(x.desc))?`<span class="pill warn">Pago parcial · debe ${money(dl)}</span>`:`<span class="pill bad">Debe ${money(dl)}</span>`;
  if(dl<0)return `<span class="pill info">A favor ${money(-dl)}</span>`;
  if(!pend(cp).some(x=>x.mes==='2026-11'))return '<span class="pill good">Pagó noviembre por adelantado</span>';return '<span class="pill good">Al día</span>';};
@@ -418,7 +421,7 @@ V.cobranza=p=>{
  if(tab==='Datos principales'){
   const ver=verCob(cp,p),mx=maxAde(cp),ade=p.ade||0;const hist=p.atrasar?S.cargos.filter(x=>x.carpeta===cp&&x.estado!=='pendiente'):[];
   const sel=p.sel||ver.map(x=>x.id);
-  const rows=ver.map(x=>{const pu=pun(x),on=sel.includes(x.id);return `<tr><td><input type="checkbox" data-sel="${x.id}" ${on?'checked':''} aria-label="Cobrar ${esc(x.desc)}"></td><td>${fdate(x.vence)}</td><td>${x.cuenta}</td><td>${esc(x.desc)}${x.ajPend?' <span class="pill warn" title="Se cobra al valor actual; la diferencia del aumento se genera después">a valor actual</span>':''}${x.ajustes.length?' <span class="pill info" title="'+esc(x.ajustes.at(-1).motivo)+'">ajustado</span>':''}</td>
+  const rows=ver.map(x=>{const pu=pun(x),on=sel.includes(x.id);return `<tr><td><input type="checkbox" data-sel="${x.id}" ${on?'checked':''} aria-label="Cobrar ${esc(x.desc)}"></td><td>${fdate(x.vence)}</td><td>${x.cuenta}</td><td>${esc(x.desc)}${x.adel&&x.adel.length?' <span class="pill info" title="La inmobiliaria ya se lo adelantó al propietario: lo que se cobre recupera ese adelanto">adelantado al dueño</span>':''}${x.ajPend?' <span class="pill warn" title="Se cobra al valor actual; la diferencia del aumento se genera después">a valor actual</span>':''}${x.ajustes.length?' <span class="pill info" title="'+esc(x.ajustes.at(-1).motivo)+'">ajustado</span>':''}</td>
    <td class="num">${money(x.monto)} <button class="icon" type="button" data-act="ajuste" data-id="${x.id}" title="Ajustar monto" aria-label="Ajustar monto">✎</button></td>
    <td class="num">${pu.dias?`<label><input type="checkbox" data-pun="${x.id}" checked> ${pu.dias} días × 0,5% = ${money(pu.monto)}</label>`:x.perdon?'<span class="pill plain" title="'+esc(x.perdon)+'">perdonado</span>':'<span class="muted">—</span>'}</td>
    <td class="num"><b>${money(x.monto+pu.monto)}</b></td><td><button class="lnk" type="button" data-act="anular" data-id="${x.id}">Anular</button></td></tr>`;}).join('');
@@ -569,22 +572,31 @@ V.morosos=()=>{
 };
 
 V.liqpend=()=>{
- const os=owners().filter(o=>pendLiq(o).length);
- return `${help('Propietarios que tienen plata cobrada y todavía no liquidada. Se liquida solo lo que el inquilino efectivamente pagó. El honorario es el 5% sobre el total liquidado.')}
- <div class="card"><div class="scroll"><table><thead><tr><th>Propietario</th><th>Contratos</th><th class="num">Cobrado</th><th class="num">Honorario 5%</th><th class="num">Neto</th><th>CBU</th><th></th></tr></thead><tbody>${os.map(o=>{const it=pendLiq(o),c=it.reduce((a,q)=>a+q.monto,0),h=Math.round(c*.05);
-  return `<tr><td>${nombre(o)}</td><td>${[...new Set(it.map(q=>q.cp))].map(cp=>L(cp,'contrato',{cp})).join(' ')}</td><td class="num">${money(c)}</td><td class="num">${money(h)}</td><td class="num"><b>${money(c-h)}</b></td><td>${pers(o).cbu==='Cargado'?'<span class="pill good">Cargado</span>':'<span class="pill warn">Falta</span>'}</td><td>${L('Liquidar','liquidacion',{id:o},'btn sm primary')}</td></tr>`;}).join('')||'<tr><td colspan="7" class="empty">No hay nada para liquidar.</td></tr>'}</tbody></table></div></div>`;
+ const os=owners().filter(o=>pendLiq(o).length||cpsDe(o).some(cp=>sinCobrar(o,cp).length));
+ return `${help('Cada propietario con plata para liquidar. "Cobrado" es lo que ya pagaron sus inquilinos; "Sin cobrar" es lo que todavía deben, que la inmobiliaria le puede adelantar. Al entrar en "Liquidar" se elige de qué contratos sale el pago.')}
+ <div class="card"><div class="scroll"><table><thead><tr><th>Propietario</th><th>Contratos</th><th class="num">Cobrado</th><th class="num">Sin cobrar</th><th class="num">Neto de lo cobrado</th><th>CBU</th><th></th></tr></thead><tbody>${os.map(o=>{const it=pendLiq(o),c=it.reduce((a,q)=>a+q.monto,0),h=Math.round(c*.05),sc=cpsDe(o).reduce((a,cp)=>a+sinCobrar(o,cp).reduce((s2,q)=>s2+q.monto,0),0);
+  return `<tr><td>${nombre(o)}</td><td>${cpsDe(o).map(cp=>L(cp,'contrato',{cp})).join(' ')}</td><td class="num">${money(c)}</td><td class="num">${sc?money(sc):'<span class="muted">—</span>'}</td><td class="num"><b>${money(c-h)}</b></td><td>${pers(o).cbu==='Cargado'?'<span class="pill good">Cargado</span>':'<span class="pill warn">Falta</span>'}</td><td>${L('Liquidar','liquidacion',{id:o},'btn sm primary')}</td></tr>`;}).join('')||'<tr><td colspan="7" class="empty">No hay nada para liquidar.</td></tr>'}</tbody></table></div></div>`;
 };
 
 V.liquidacion=p=>{
- const o=p.id,it=pendLiq(o),c=it.reduce((a,q)=>a+q.monto,0),h=Math.round(c*.05);
- const gastos=S.gastosProp.filter(g=>g.owner===o&&!g.liq),gt=gastos.reduce((a,g)=>a+g.monto,0);const red=p.red||0;
- const neto=c-h-gt;const rn=red?Math.floor(neto/red)*red:neto;
- return `${help('El detalle de lo que se le paga al propietario: lo cobrado de cada contrato, menos el honorario y los gastos a su cargo. Si hay varios dueños, a cada uno le toca su %. Al confirmar sale el comprobante numerado.')}
- <div class="card"><h2>${nombre(o)}</h2><div class="scroll"><table><thead><tr><th>Carpeta</th><th>Concepto</th><th class="num">%</th><th class="num">Le corresponde</th></tr></thead><tbody>${it.map(q=>`<tr><td>${L(q.cp,'contrato',{cp:q.cp})}</td><td>${esc(q.x.desc)}</td><td class="num">${q.pct}%</td><td class="num">${money(q.monto)}</td></tr>`).join('')}</tbody></table></div>
- <div class="eq"><div><span>Total cobrado</span><span>${money(c)}</span></div><div><span>− Honorario 5% sobre el total</span><span>${money(-h)}</span></div>${gastos.map(g=>`<div><span>− ${esc(g.desc)}</span><span>${money(-g.monto)}</span></div>`).join('')}${red?`<div><span>Redondeo</span><span>${money(rn-neto)}</span></div>`:''}<div class="t"><span>Neto a pagar</span><span>${money(rn)}</span></div></div>
+ const o=p.id,cps=cpsDe(o),pag=pendLiq(o),red=p.red||0;
+ const conPago=cps.filter(cp=>pag.some(q=>q.cp===cp));
+ const sel=p.sel||conPago, adv=p.adv||[];
+ const filas=cps.map(cp=>{const pc=pag.filter(q=>q.cp===cp),sc=sinCobrar(o,cp);return {cp,pc,sc,cob:pc.reduce((a,q)=>a+q.monto,0),deb:sc.reduce((a,q)=>a+q.monto,0)};});
+ const inc=[];filas.forEach(f=>{if(sel.includes(f.cp))f.pc.forEach(q=>inc.push({...q,adel:false}));if(adv.includes(f.cp))f.sc.forEach(q=>inc.push({...q,adel:true}));});
+ const cob=inc.filter(q=>!q.adel).reduce((a,q)=>a+q.monto,0),ade=inc.filter(q=>q.adel).reduce((a,q)=>a+q.monto,0),tot=cob+ade,h=Math.round(tot*.05);
+ const gastos=S.gastosProp.filter(g=>g.owner===o&&!g.liq),gt=gastos.reduce((a,g)=>a+g.monto,0);
+ const neto=tot-h-gt;const rn=red?Math.floor(neto/red)*red:neto;
+ return `${help('Elegí de qué contratos sale el pago. Al entrar vienen marcados solo los que ya pagaron. Si un inquilino todavía debe, podés marcar "Adelantar": esa plata la pone la inmobiliaria, y cuando el inquilino pague, lo cobrado recupera el adelanto en vez de volver a liquidarse al dueño.')}
+ <div class="card"><div class="sum"><h2>${nombre(o)}</h2><span class="muted">${cps.length} contrato${cps.length>1?'s':''}</span></div>
+ <div class="scroll"><table><thead><tr><th>Carpeta</th><th>Inquilino</th><th class="num">Cobrado</th><th>Liquidar lo cobrado</th><th class="num">Debe</th><th>Adelantar lo que debe</th></tr></thead><tbody>${filas.map(f=>`<tr><td>${L(f.cp,'contrato',{cp:f.cp})}</td><td>${nombre(C(f.cp).inq)}</td>
+  <td class="num">${f.cob?money(f.cob):'<span class="muted">—</span>'}</td><td>${f.pc.length?`<input type="checkbox" data-lsel="${f.cp}" ${sel.includes(f.cp)?'checked':''} aria-label="Liquidar lo cobrado de ${f.cp}">`:'<span class="muted">Nada cobrado</span>'}</td>
+  <td class="num">${f.deb?money(f.deb):'<span class="muted">—</span>'}</td><td>${f.sc.length?`<label class="row" style="gap:6px"><input type="checkbox" data-ladv="${f.cp}" ${adv.includes(f.cp)?'checked':''}> <span class="pill warn">sale de la inmobiliaria</span></label>`:'<span class="muted">Al día</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="card"><h3>Detalle</h3>${inc.length?`<div class="scroll"><table><thead><tr><th>Carpeta</th><th>Concepto</th><th>Origen</th><th class="num">%</th><th class="num">Le corresponde</th></tr></thead><tbody>${inc.map(q=>`<tr><td>${L(q.cp,'contrato',{cp:q.cp})}</td><td>${esc(q.x.desc)}</td><td>${q.adel?'<span class="pill warn">Adelanto de la inmobiliaria</span>':'<span class="pill good">Pagó el inquilino</span>'}</td><td class="num">${q.pct}%</td><td class="num">${money(q.monto)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Marcá al menos un contrato arriba.</p>'}
+ <div class="eq"><div><span>Cobrado a inquilinos</span><span>${money(cob)}</span></div>${ade?`<div><span>Adelanto de la inmobiliaria</span><span>${money(ade)}</span></div>`:''}<div><span>− Honorario 5% sobre el total</span><span>${money(-h)}</span></div>${gastos.map(g=>`<div><span>− ${esc(g.desc)}</span><span>${money(-g.monto)}</span></div>`).join('')}${red?`<div><span>Redondeo</span><span>${money(rn-neto)}</span></div>`:''}<div class="t"><span>Neto a pagar</span><span>${money(rn)}</span></div></div>
  <div class="row"><label class="field" style="max-width:220px"><span>Redondeo</span><select id="red"><option value="0">Sin redondeo</option><option value="10" ${red==10?'selected':''}>A decenas</option><option value="100" ${red==100?'selected':''}>A centenas</option><option value="1000" ${red==1000?'selected':''}>A miles</option><option value="10000" ${red==10000?'selected':''}>A 10 mil</option><option value="100000" ${red==100000?'selected':''}>A 100 mil</option></select></label></div>
  ${pers(o).cbu!=='Cargado'?'<span class="pill warn">Este propietario no tiene CBU cargado: se le paga en efectivo o hay que cargarlo.</span>':''}
- <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="adelanto" data-id="${o}">Adelantar pago</button><button class="btn primary" type="button" data-act="liquidar" data-id="${o}" data-neto="${rn}" data-h="${h}" ${it.length?'':'disabled'}>Confirmar liquidación</button></div></div>`;
+ <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="adelanto" data-id="${o}">Adelanto suelto</button><button class="btn primary" type="button" data-act="liquidar" data-id="${o}" data-neto="${rn}" data-h="${h}" data-ade="${ade}" ${inc.length?'':'disabled'}>Confirmar liquidación</button></div></div>`;
 };
 
 V.prox=()=>{
@@ -713,6 +725,8 @@ function bind(){
  document.querySelectorAll('[data-cu]').forEach(sl=>sl.onchange=()=>{const c=S.cuentas[+sl.dataset.cu];
   if(c.r==='Administrador'&&S.cuentas.filter(q=>q.r==='Administrador').length===1){sl.value='Administrador';toast('Tiene que quedar al menos una cuenta Administrador');return;}
   c.r=sl.value;toast(c.n+' ahora se rige por el rango '+c.r);render();});
+ document.querySelectorAll('[data-lsel]').forEach(c=>c.onchange=()=>{cur.p={...cur.p,sel:[...document.querySelectorAll('[data-lsel]')].filter(x=>x.checked).map(x=>x.dataset.lsel)};render();});
+ document.querySelectorAll('[data-ladv]').forEach(c=>c.onchange=()=>{cur.p={...cur.p,sel:cur.p.sel||[...document.querySelectorAll('[data-lsel]')].filter(x=>x.checked).map(x=>x.dataset.lsel),adv:[...document.querySelectorAll('[data-ladv]')].filter(x=>x.checked).map(x=>x.dataset.ladv)};render();});
  const ha=$('#hastames');if(ha)ha.onchange=()=>{cur.p={...cur.p,ade:+ha.value,sel:undefined,abon:undefined};render();};
  const rd=$('#red');if(rd)rd.onchange=()=>{cur.p={...cur.p,red:+rd.value};render();};
  
@@ -756,11 +770,11 @@ const ACT={
   const queda=tot-ab;
   modal('Revisión del cobro',`<table><thead><tr><th>Cargo</th><th class="num">Debe</th><th class="num">Se aplica</th></tr></thead><tbody>${plan.map(q=>`<tr><td>${esc(q.x.desc)}${q.p?' + punitorio':''}</td><td class="num">${money(q.need)}</td><td class="num">${money(q.pay)}</td></tr>`).join('')}</tbody></table>
    <div class="eq" style="margin-top:8px">${neg.length?`<div><span>Saldo a favor que se aplica</span><span>${money(-neg.reduce((a,x)=>a+x.monto,0))}</span></div>`:''}<div><span>Abonado (${forma.toLowerCase()})</span><span>${money(ab)}</span></div><div class="t"><span>${queda>0?'Queda debiendo':queda<0?'Saldo a favor':'Saldo'}</span><span>${money(Math.abs(queda))}</span></div></div>
-   <p class="muted">El pago se aplica primero al punitorio y a la cuota más vieja.</p>`,
+   <p class="muted">El pago se aplica primero al punitorio y a la cuota más vieja.${plan.some(q=>q.x.adel&&q.x.adel.length)?' Parte de lo que se cobra ya se le adelantó al propietario: recupera el adelanto de la inmobiliaria y no se le vuelve a liquidar.':''}</p>`,
    [{label:'Volver'},{label:'Confirmar y emitir recibo',primary:true,fn:()=>{
     const items=[];plan.forEach(q=>{let punPag=Math.min(q.p,q.pay),cap=q.pay-punPag;
      if(cap>=q.x.monto){q.x.estado='pagado';items.push({id:q.x.id,desc:q.x.desc,monto:q.x.monto,pun:punPag});}
-     else{const rest={...q.x,id:S.nextId++,monto:q.x.monto-cap,desc:q.x.desc+' (saldo)',ajustes:[],liq:[]};q.x.monto=cap;q.x.estado='pagado';q.x.desc+=' (pago parcial)';S.cargos.push(rest);items.push({id:q.x.id,desc:q.x.desc,monto:cap,pun:punPag});}});
+     else{const rest={...q.x,id:S.nextId++,monto:q.x.monto-cap,desc:q.x.desc+' (saldo)',ajustes:[],liq:q.x.liq.slice(),adel:(q.x.adel||[]).slice()};q.x.monto=cap;q.x.estado='pagado';q.x.desc+=' (pago parcial)';S.cargos.push(rest);items.push({id:q.x.id,desc:q.x.desc,monto:cap,pun:punPag});}});
     neg.forEach(x=>{x.estado='pagado';items.push({id:x.id,desc:x.desc+' (aplicado)',monto:x.monto,pun:0});});const r={n:S.nextRecibo++,fecha:'2026-10-29',carpeta:cp,items,total:ab,forma,nota};if(resto>0)S.cargos.push({id:S.nextId++,carpeta:cp,mes:'2026-10',vence:'2026-10-29',estado:'pendiente',liq:[],ajustes:[],cuenta:'Saldo a favor',desc:'Saldo a favor del recibo '+String(r.n).padStart(4,'0'),monto:-resto});items.forEach(i=>{const x=S.cargos.find(q=>q.id===i.id);x.recibo=r.n;});
     S.recibos.push(r);S.caja.push({fecha:'2026-10-29',cuenta:'Alquiler',cp,concepto:'Recibo '+String(r.n).padStart(4,'0'),entrada:ab,salida:0,forma});
     cur.p={cp};setTimeout(()=>{render();verRecibo(r.n);},0);}}],true);},
@@ -803,10 +817,14 @@ const ACT={
   [{label:'Cancelar'},{label:'Crear acuerdo',primary:true,fn:o=>{S.gestiones.push({carpeta:cp,fecha:'2026-10-29',tipo:'Acuerdo de pago',con:'Inquilino',res:o.querySelector('#a-n').value+' cuotas de '+money(t/o.querySelector('#a-n').value)});},after:()=>{toast('Acuerdo anotado (en el prototipo no cambia las cuotas)');render();}}]);
   const upd=()=>{const n=+document.querySelector('#a-n').value;document.querySelector('#a-prev').textContent=n+' cuotas de '+money(t/n)+' (sin interés en el ejemplo).';};upd();document.querySelector('#a-n').onchange=upd;},
  adelanto(b){modal('Adelantar pago',`<p style="margin-top:0">Se le da plata al propietario antes de que pague el inquilino, y se descuenta en la próxima liquidación.</p><label class="field"><span>Monto ($)</span><input id="ad-m" type="number" value="100000"></label>`,[{label:'Cancelar'},{label:'Guardar',primary:true,fn:o=>{S.gastosProp.push({owner:b.dataset.id,desc:'Adelanto del 29/10',monto:+o.querySelector('#ad-m').value});S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:b.dataset.id,concepto:'Adelanto',entrada:0,salida:+o.querySelector('#ad-m').value,forma:'Efectivo'});},after:()=>{toast('Adelanto guardado: se descuenta abajo');render();}}]);},
- liquidar(b){const o=b.dataset.id,neto=+b.dataset.neto,h=+b.dataset.h;pendLiq(o).forEach(q=>q.x.liq.push(o));S.gastosProp.filter(g=>g.owner===o).forEach(g=>g.liq=true);
-  const l={n:S.nextLiq++,owner:o,neto,h};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:o,concepto:'Liquidación '+String(l.n).padStart(4,'0'),entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
+ liquidar(b){const o=b.dataset.id,neto=+b.dataset.neto,h=+b.dataset.h,ade=+b.dataset.ade,pg=cur.p;
+  const pag=pendLiq(o),cps=cpsDe(o),sel=pg.sel||cps.filter(cp=>pag.some(q=>q.cp===cp)),adv=pg.adv||[];
+  pag.filter(q=>sel.includes(q.cp)).forEach(q=>q.x.liq.push(o));
+  adv.forEach(cp=>sinCobrar(o,cp).forEach(q=>{q.x.liq.push(o);q.x.adel=(q.x.adel||[]).concat(o);}));
+  S.gastosProp.filter(g=>g.owner===o).forEach(g=>g.liq=true);
+  const l={n:S.nextLiq++,owner:o,neto,h,ade};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:o,concepto:'Liquidación '+String(l.n).padStart(4,'0')+(ade?' (incluye adelanto de la inmobiliaria)':''),entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
   S.caja.push({fecha:'2026-10-29',cuenta:'Honorarios',per:o,concepto:'Honorario 5%',entrada:h,salida:0,forma:'—'});
-  modal('Comprobante de liquidación '+String(l.n).padStart(4,'0'),`<div class="sum"><div><b>${nombre(o)}</b><div class="muted">29/10/2026</div><div style="margin-top:8px">Neto pagado: <b>${money(neto)}</b></div></div><div class="qr" role="img" aria-label="Código QR"></div></div>`,[{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Listo',primary:true}]);go('liqpend',{},false);},
+  modal('Comprobante de liquidación '+String(l.n).padStart(4,'0'),`<div class="sum"><div><b>${nombre(o)}</b><div class="muted">29/10/2026</div><div style="margin-top:8px">Neto pagado: <b>${money(neto)}</b></div>${ade?`<div class="muted">Incluye ${money(ade)} adelantados por la inmobiliaria</div>`:''}</div><div class="qr" role="img" aria-label="Código QR"></div></div>`,[{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Listo',primary:true}]);go('liqpend',{},false);},
  avisoaum(){const n=Object.values(S.aprobados).filter(Boolean).length;toast(n?'Se avisaría el aumento a '+n+' inquilinos por WhatsApp':'Primero aprobá algún aumento');},
  generar(){S.generadoDic=true;Object.keys(S.C).forEach(cp=>{const c=C(cp),a=ajustesDic().includes(cp);S.cargos.push({id:S.nextId++,carpeta:cp,mes:'2026-12',vence:'2026-12-10',estado:'pendiente',liq:[],ajustes:[],cuenta:'Alquiler',desc:'Alquiler diciembre/2026'+(a&&!S.aprobados[cp]?' (pendiente de ajuste)':''),monto:a&&S.aprobados[cp]?nuevoMonto(c.alq):c.alq});if(a&&S.aprobados[cp])c.alq=nuevoMonto(c.alq);});
   toast('Cuotas de diciembre generadas, sin duplicar');render();}
