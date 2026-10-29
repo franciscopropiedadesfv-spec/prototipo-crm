@@ -49,6 +49,7 @@ main{padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px)
 .btn:focus-visible,.lnk:focus-visible,input:focus-visible,select:focus-visible,.tab:focus-visible,.icon:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .lnk{color:var(--accent);font-weight:700;cursor:pointer;background:none;border:0;padding:0;text-align:left}
 .lnk:hover{text-decoration:underline}
+.lnk.h1l{font:inherit;color:inherit}.lnk.h1l:hover{color:var(--accent)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
 .help{background:var(--note);border:1px solid var(--note-line);border-radius:8px;padding:10px 14px;font-size:13.5px;display:flex;gap:10px;align-items:flex-start}
 .help b{font-family:var(--display)}
@@ -234,7 +235,7 @@ function semilla(){
    if(mm==='2026-10'&&c.esc==='afavor')extra=rnd(10000,60000,1000);
    const r={n:nr++,fecha,carpeta:cp,items:rItems,total:tot+extra,forma};its.forEach(x=>x.recibo=r.n);recibos.push(r);
    if(extra)cargos.push({carpeta:cp,mes:mm,vence:fecha,estado:'pendiente',liq:[],ajustes:[],id:id++,cuenta:'Saldo a favor',desc:'Saldo a favor del recibo '+String(r.n).padStart(4,'0'),monto:-extra});
-   caja.push({fecha,cuenta:its.some(x=>x.cuenta==='Expensas')?'Expensas':'Alquiler',concepto:'Recibo '+String(r.n).padStart(4,'0')+' · carpeta '+cp,entrada:r.total,salida:0,forma});
+   caja.push({fecha,cuenta:its.some(x=>x.cuenta==='Expensas')?'Expensas':'Alquiler',cp,concepto:'Recibo '+String(r.n).padStart(4,'0'),entrada:r.total,salida:0,forma});
   }
  }
  recibos.sort((a,b)=>a.fecha<b.fecha?-1:1);caja.sort((a,b)=>a.fecha<b.fecha?-1:1);
@@ -308,6 +309,7 @@ function modal(title,body,acts,wide){
  (acts||[{label:'Cerrar'}]).forEach(a=>{const b=document.createElement('button');b.type='button';b.className='btn'+(a.primary?' primary':'');b.textContent=a.label;
   b.onclick=()=>{if(a.fn&&a.fn(o)===false)return;o.remove();if(a.after)a.after();};box.appendChild(b);});
  o.addEventListener('click',e=>{if(e.target===o)o.remove();});
+ o.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{o.remove();go(b.dataset.go,JSON.parse(b.dataset.p||'{}'));});
  document.body.appendChild(o);const f=o.querySelector('input,select,textarea,button');if(f)f.focus();return o;}
 const L=(label,v,p,cls='lnk')=>`<button type="button" class="${cls}" data-go="${v}" data-p='${esc(JSON.stringify(p))}'>${label}</button>`;
 const nombre=id=>L(esc(pers(id).n),'persona',{id});
@@ -337,7 +339,7 @@ V.inicio=p=>{
    <td>${estado(cp)}</td></tr>`;}).join('')}</tbody></table></div>`;}
  else if(modo==='Stock'){lista=`<div class="scroll"><table><thead><tr><th>Propiedad</th><th>Tipo</th><th>Hub</th><th>Propietarios</th></tr></thead><tbody>${Object.entries(S.PR).map(([k,r])=>`<tr data-s="${esc((r.dir+' '+r.hub+' '+r.due.map(x=>pers(x[0]).n).join(' ')+' '+Object.keys(S.C).filter(cp=>S.C[cp].prop===k).join(' ')).toLowerCase())}"><td>${L(esc(r.dir),'propiedad',{pr:k})}</td><td>${r.tipo}</td><td class="muted">${r.hub}</td><td>${r.due.map(x=>nombre(x[0])+` <span class="muted">${x[1]}%</span>`).join('<br>')}</td></tr>`).join('')}</tbody></table></div>`;}
  else{const pref=modo==='Inquilinos'?'I':'O';lista=`<div class="scroll"><table><thead><tr><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Contratos</th></tr></thead><tbody>${Object.keys(S.P).filter(k=>k[0]===pref).map(k=>`<tr data-s="${esc((pers(k).n+' '+pers(k).dni+' '+rolesDe(k).map(r=>r.cp).join(' ')).toLowerCase())}"><td>${nombre(k)}</td><td>${pers(k).dni}</td><td>${pers(k).tel}</td><td>${rolesDe(k).map(r=>L(r.cp,'contrato',{cp:r.cp})).join(' ')}</td></tr>`).join('')}</tbody></table></div>`;}
- return `${help('Es lo primero que se ve al entrar. Arriba están los índices, en el medio los 6 accesos a las tareas del mes, y abajo la lista de contratos por número de carpeta, con un buscador que la filtra por carpeta, dirección, nombre o DNI. Tocá el número de carpeta para ver el contrato, el nombre del inquilino para cobrarle, y los íconos para el acceso al portal, el archivo de la persona, los documentos y la cuenta corriente.')}
+ return `${help('Es lo primero que se ve al entrar. Arriba están los índices, en el medio los 6 accesos a las tareas del mes, y abajo la lista de contratos por número de carpeta, con un buscador que la filtra por carpeta, dirección, nombre o DNI. En todo el sistema, cada nombre, dirección y número de carpeta se puede tocar para abrir su archivo. Tocá el número de carpeta para ver el contrato, el nombre del inquilino para cobrarle, y los íconos para el acceso al portal, el archivo de la persona, los documentos y la cuenta corriente.')}
   <div><div class="lbl" style="margin-bottom:6px">Índices · valores de ejemplo</div><div class="idx">${[['ICL','1,0412'],['Casa Propia','1,0318'],['IPC','2,1%'],['RIPTE','1,9%'],['CAC','2,4%'],['UVA','1.312,55']].map(x=>`<div><b>${x[0]}</b><span>${x[1]} · sep/2026</span></div>`).join('')}</div></div>
  <div class="acc">${ac.map(a=>`<button type="button" data-go="${a[0]}" data-p="{}">${a[1]}<span>${a[2]}</span>${a[3]?`<i class="badge">${a[3]}</i>`:''}</button>`).join('')}</div>
  <div class="card"><div class="tabs">${Object.keys(cnt).map(k=>`<button type="button" class="tab${k===modo?' on':''}" data-modo="${k}">${k} <span class="muted">${cnt[k]}</span></button>`).join('')}<input id="fq" class="listsearch" type="search" placeholder="Buscar carpeta, dirección, nombre o DNI" aria-label="Buscar en la lista" autocomplete="off" value="${esc(p.f||'')}"></div>${lista}<p id="fnone" class="empty" hidden>Sin resultados para esa búsqueda.</p>
@@ -380,7 +382,7 @@ V.cobranza=p=>{
  }else if(tab==='Concepto compartido'){
   body=`<p class="muted" style="margin:0">Un gasto que se reparte entre varios contratos, con un % cada uno. Por ejemplo, un arreglo de un edificio con varias unidades.</p>
   <div class="grid3"><label class="field"><span>Gasto</span><input id="cc-g" value="Arreglo de la bomba de agua"></label><label class="field"><span>Monto total ($)</span><input id="cc-m" type="number" value="120000"></label></div>
-  <div class="scroll"><table><thead><tr><th>Incluir</th><th>Carpeta</th><th>Dirección</th><th>%</th></tr></thead><tbody>${Object.keys(S.C).map(k=>`<tr><td><input type="checkbox" data-cc="${k}" ${k===cp?'checked':''}></td><td>${k}</td><td>${esc(S.PR[C(k).prop].dir)}</td><td><input type="number" data-ccp="${k}" value="${k===cp?100:0}" style="max-width:90px"></td></tr>`).join('')}</tbody></table></div>
+  <div class="scroll"><table><thead><tr><th>Incluir</th><th>Carpeta</th><th>Dirección</th><th>%</th></tr></thead><tbody>${Object.keys(S.C).map(k=>`<tr><td><input type="checkbox" data-cc="${k}" ${k===cp?'checked':''}></td><td>${L(k,'contrato',{cp:k})}</td><td>${L(esc(S.PR[C(k).prop].dir),'propiedad',{pr:C(k).prop})}</td><td><input type="number" data-ccp="${k}" value="${k===cp?100:0}" style="max-width:90px"></td></tr>`).join('')}</tbody></table></div>
   <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" data-act="cc-save">Repartir y guardar</button></div>`;
  }else if(tab==='Concepto dividido'){
   body=`<p class="muted" style="margin:0">Un gasto de este contrato que se reparte entre el inquilino y el propietario. La parte del propietario se le descuenta en la liquidación.</p>
@@ -404,7 +406,7 @@ V.contrato=p=>{
  const cp=p.cp,c=C(cp),pr=prop(cp),rest=days(HOY,d(c.hasta));
  const prox=(()=>{const ini=d(c.desde);let m=new Date(ini);while(m<=HOY)m.setMonth(m.getMonth()+c.cada);return MESES[m.getMonth()].slice(0,3)+'/'+m.getFullYear();})();
  return `${help('Cada carpeta es un contrato. La renovación mantiene el número y un contrato nuevo toma el siguiente. Acá está todo el contrato junto, y se puede abrir el contrato firmado entero o descargarlo. Cada nombre y la dirección abren su propio archivo.')}
- <div class="card"><div class="sum"><div><span class="lbl">Carpeta ${cp}</span><h1>${esc(pr.dir)}</h1><div class="row" style="margin-top:6px"><span class="pill ${rest<=90?'warn':'good'}">${rest<=90?'Vence en '+rest+' días':'Vigente'}</span><span class="pill plain">${c.tipo}</span></div></div>
+ <div class="card"><div class="sum"><div><span class="lbl">Carpeta ${cp}</span><h1>${L(esc(pr.dir),'propiedad',{pr:c.prop},'lnk h1l')}</h1><div class="row" style="margin-top:6px"><span class="pill ${rest<=90?'warn':'good'}">${rest<=90?'Vence en '+rest+' días':'Vigente'}</span><span class="pill plain">${c.tipo}</span></div></div>
   <div class="row"><button class="btn primary" type="button" data-act="visor" data-cp="${cp}">Abrir contrato firmado</button><button class="btn" type="button" data-act="descargar">Descargar</button></div></div>
  <div class="grid3"><div class="kv"><span class="lbl">Propiedad</span>${L(esc(pr.dir),'propiedad',{pr:c.prop})}</div><div class="kv"><span class="lbl">Inquilino</span>${nombre(c.inq)}</div><div class="kv"><span class="lbl">Propietario/s</span>${pr.due.map(x=>nombre(x[0])+` <span class="muted">${x[1]}%</span>`).join('<br>')}</div></div></div>
  <div class="grid3"><div class="card"><span class="lbl">Plazo</span><b>${fdate(c.desde)} → ${fdate(c.hasta)}</b><span class="muted">${c.cuotas} cuotas</span></div>
@@ -434,7 +436,7 @@ V.persona=p=>{
   ${esPro?`<div><span class="lbl">Liquidaciones</span><div>${ownLiq.length?`Pendiente: <b>${money(ownLiq.reduce((a,q)=>a+q.monto,0)*.95)}</b> neto `+L('Liquidar','liquidacion',{id},'btn sm'):'<span class="muted">Nada pendiente de liquidar</span>'}</div>${S.liqs.filter(l=>l.owner===id).map(l=>`<div class="muted">Liquidación ${String(l.n).padStart(4,'0')} · ${money(l.neto)}</div>`).join('')}</div>`:''}
   ${!esInq&&!esPro?'<p class="muted" style="margin:0">Es garante: no paga ni cobra, pero queda guardado en cada contrato que garantiza.</p>':''}</div>
  <div class="card"><h3>Seguimiento</h3><div class="row">${rs.map(r=>L('Documentos '+r.cp,'docs',{cp:r.cp},'btn sm')).join('')}</div>
-  <div><span class="lbl">Gestiones</span>${gs.length?gs.map(g=>`<div>${fdate(g.fecha)} · ${esc(g.tipo)} · <span class="muted">${esc(g.res)}</span></div>`).join(''):'<div class="muted">Sin gestiones</div>'}</div></div></div>`;
+  <div><span class="lbl">Gestiones</span>${gs.length?gs.map(g=>`<div>${L(g.carpeta,'contrato',{cp:g.carpeta})} · ${fdate(g.fecha)} · ${esc(g.tipo)} · <span class="muted">${esc(g.res)}</span></div>`).join(''):'<div class="muted">Sin gestiones</div>'}</div></div></div>`;
 };
 
 V.propiedad=p=>{
@@ -443,22 +445,22 @@ V.propiedad=p=>{
  <div class="card"><span class="lbl">${r.hub} · ${r.tipo}</span><h1>${esc(r.dir)}</h1><span class="muted">${esc(r.loc)}</span>
  <div class="grid3"><div class="kv"><span class="lbl">Partida</span>${r.partida}</div><div class="kv"><span class="lbl">Luz</span>${r.luz}</div><div class="kv"><span class="lbl">Agua</span>${r.agua}</div></div></div>
  <div class="grid2"><div class="card"><h3>Propietarios</h3>${r.due.map(x=>`<div>${nombre(x[0])} <span class="muted">· ${x[1]}%</span></div>`).join('')}</div>
- <div class="card"><h3>Contratos</h3><table><tbody>${cs.map(([cp,c])=>`<tr><td>${L(cp,'contrato',{cp})}</td><td>${nombre(c.inq)}</td><td>${fdate(c.desde)} → ${fdate(c.hasta)}</td><td><span class="pill good">Vigente</span></td></tr>`).join('')}<tr><td class="muted">anterior</td><td class="muted">Inquilino anterior (ejemplo)</td><td class="muted">2021 → 2024</td><td><span class="pill plain">Finalizado</span></td></tr></tbody></table></div></div>`;
+ <div class="card"><h3>Contratos</h3><table><tbody>${cs.map(([cp,c])=>`<tr><td>${L(cp,'contrato',{cp})}</td><td>${nombre(c.inq)}</td><td>${fdate(c.desde)} → ${fdate(c.hasta)}</td><td><span class="pill good">Vigente</span></td></tr>`).join('')}<tr><td class="muted">anterior</td><td class="muted">Inquilino anterior (ejemplo, sin archivo)</td><td class="muted">2021 → 2024</td><td><span class="pill plain">Finalizado</span></td></tr></tbody></table></div></div>`;
 };
 
 V.cta=p=>{
  const cp=p.cp;const mov=[];
  S.cargos.filter(x=>x.carpeta===cp&&(d(x.vence)<=HOY||x.estado!=='pendiente')).forEach(x=>{if(x.monto<0){if(x.estado==='pendiente')mov.push({f:x.vence,c:x.desc,deb:0,cre:-x.monto});return;}mov.push({f:x.mes+'-01',c:x.desc,deb:x.monto,cre:0,an:x.estado==='anulado',mot:x.motivo});});
- S.recibos.filter(r=>r.carpeta===cp).forEach(r=>mov.push({f:r.fecha,c:'Recibo '+String(r.n).padStart(4,'0')+' ('+r.forma.toLowerCase()+')',deb:r.items.reduce((a,i)=>a+i.pun,0),cre:r.total,pun:true}));
+ S.recibos.filter(r=>r.carpeta===cp).forEach(r=>mov.push({f:r.fecha,n:r.n,c:'Recibo '+String(r.n).padStart(4,'0')+' ('+r.forma.toLowerCase()+')',deb:r.items.reduce((a,i)=>a+i.pun,0),cre:r.total,pun:true}));
  mov.sort((a,b)=>a.f<b.f?-1:1);let s=0;
  const rows=mov.map(m=>{if(m.an)return `<tr class="off"><td>${fdate(m.f)}</td><td>${esc(m.c)} · anulado: ${esc(m.mot)}</td><td class="num">${money(m.deb)}</td><td></td><td></td></tr>`;
-  if(m.pun&&m.deb){s+=m.deb;}s+=(m.pun?0:m.deb)-m.cre;return `<tr><td>${fdate(m.f)}</td><td>${esc(m.c)}${m.pun&&m.deb?' <span class="muted">(incluye punitorio '+money(m.deb)+')</span>':''}</td><td class="num">${m.pun?'':money(m.deb)}</td><td class="num">${m.cre?money(m.cre):''}</td><td class="num">${money(s)}</td></tr>`;}).join('');
+  if(m.pun&&m.deb){s+=m.deb;}s+=(m.pun?0:m.deb)-m.cre;return `<tr><td>${fdate(m.f)}</td><td>${m.n?`<button class="lnk" type="button" data-act="verrecibo" data-n="${m.n}">${esc(m.c)}</button>`:esc(m.c)}${m.pun&&m.deb?' <span class="muted">(incluye punitorio '+money(m.deb)+')</span>':''}</td><td class="num">${m.pun?'':money(m.deb)}</td><td class="num">${m.cre?money(m.cre):''}</td><td class="num">${money(s)}</td></tr>`;}).join('');
  return `${help('El libro de movimientos del contrato: cada cargo suma, cada pago resta. El saldo nunca se escribe a mano, sale de los movimientos. Lo anulado queda visible y tachado, con su motivo.')}
- <div class="card"><div class="sum"><h2>Carpeta ${cp} · ${nombre(C(cp).inq)}</h2><b>Saldo: ${money(s)}</b></div><div class="scroll"><table><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Saldo</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+ <div class="card"><div class="sum"><h2>${L('Carpeta '+cp,'contrato',{cp})} · ${nombre(C(cp).inq)}</h2><b>Saldo: ${money(s)}</b></div><div class="scroll"><table><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Débito</th><th class="num">Crédito</th><th class="num">Saldo</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 };
 
 V.docs=p=>`${help('Los archivos del contrato: el contrato firmado, los DNI y lo que se suba. Al lado de cada uno se ve si la IA ya lo leyó.')}
- <div class="card"><h2>Documentos · carpeta ${p.cp}</h2><table><thead><tr><th>Archivo</th><th>Lectura de IA</th><th></th></tr></thead><tbody>
+ <div class="card"><h2>Documentos · ${L('carpeta '+p.cp,'contrato',{cp:p.cp})}</h2><table><thead><tr><th>Archivo</th><th>Lectura de IA</th><th></th></tr></thead><tbody>
  <tr><td>Contrato firmado.pdf</td><td><span class="pill good">Leído</span></td><td><button class="lnk" type="button" data-act="visor" data-cp="${p.cp}">Abrir</button></td></tr>
  <tr><td>DNI inquilino frente y dorso.jpg</td><td><span class="pill plain">Sin leer</span></td><td><button class="lnk" type="button" data-act="visor" data-cp="${p.cp}">Abrir</button></td></tr>
  <tr><td>Recibo de sueldo garante.pdf</td><td><span class="pill plain">Sin leer</span></td><td><button class="lnk" type="button" data-act="visor" data-cp="${p.cp}">Abrir</button></td></tr></tbody></table>
@@ -467,7 +469,7 @@ V.docs=p=>`${help('Los archivos del contrato: el contrato firmado, los DNI y lo 
 V.acceso=p=>{
  const id=p.id,x=pers(id),a=S.accesos[id]||{},rs=rolesDe(id),rol=rs.some(r=>r.rol==='Propietario')?'Propietario':'Inquilino';
  return `${help('Desde el ícono del teléfono se le da cuenta a la persona para que vea lo suyo desde el celular: el inquilino ve qué tiene que pagar, su estado de cuenta y sus recibos; el propietario, sus liquidaciones. No puede cambiar nada. Los garantes no tienen cuenta.')}
- <div class="card"><h2>${esc(x.n)} · ${rol}</h2>
+ <div class="card"><h2>${nombre(id)} · ${rol}</h2>
  <div class="grid3"><label class="field"><span>Usuario</span><input id="ac-u" value="${esc(a.u||x.dni.replace(/\./g,''))}"></label><label class="field"><span>Contraseña provisoria</span><input id="ac-p" value="${esc(a.p||'')}" placeholder="Se cambia al entrar"></label></div>
  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="ac-gen">Generar contraseña</button><button class="btn primary" type="button" data-act="ac-save">Guardar</button><button class="btn" type="button" data-act="ac-copy">Copiar datos</button></div>
  ${a.u?'<span class="pill good">Cuenta creada</span>':'<span class="pill plain">Sin cuenta todavía</span>'}</div>
@@ -482,7 +484,7 @@ V.caja=p=>{
  const teo=S.caja.reduce((a,m)=>a+m.entrada-m.salida,0);const cont=p.contado??teo;
  return `${help('La caja muestra cada entrada y salida de plata por cuenta. Al final del día se cuenta el efectivo, se compara con lo que dice el sistema y se cierra el día. A fin de mes, el cierre mensual exige que cuadren cuatro números.')}
  <div class="card"><div class="tabs">${cs.map(c=>`<button class="tab${c===cu?' on':''}" type="button" data-cu="${c}">${c}</button>`).join('')}</div>
- <div class="scroll"><table><thead><tr><th>Fecha</th><th>Cuenta</th><th>Concepto</th><th>Forma</th><th class="num">Entrada</th><th class="num">Salida</th></tr></thead><tbody>${mv.slice().reverse().map(m=>`<tr><td>${fdate(m.fecha)}</td><td>${m.cuenta}</td><td>${esc(m.concepto)}</td><td>${m.forma}</td><td class="num">${m.entrada?money(m.entrada):''}</td><td class="num">${m.salida?money(m.salida):''}</td></tr>`).join('')}</tbody></table></div>
+ <div class="scroll"><table><thead><tr><th>Fecha</th><th>Cuenta</th><th>Concepto</th><th>Forma</th><th class="num">Entrada</th><th class="num">Salida</th></tr></thead><tbody>${mv.slice().reverse().map(m=>`<tr><td>${fdate(m.fecha)}</td><td>${m.cuenta}</td><td>${esc(m.concepto)}${m.cp?' · '+L('carpeta '+m.cp,'contrato',{cp:m.cp}):''}${m.per?' · '+nombre(m.per):''}</td><td>${m.forma}</td><td class="num">${m.entrada?money(m.entrada):''}</td><td class="num">${m.salida?money(m.salida):''}</td></tr>`).join('')}</tbody></table></div>
  <div class="tot"><div><span class="lbl">Entradas</span><b>${money(ent)}</b></div><div><span class="lbl">Salidas</span><b>${money(sal)}</b></div></div></div>
  <div class="grid2"><div class="card"><h3>Arqueo del día</h3><div class="eq"><div><span>Saldo según el sistema</span><span>${money(teo)}</span></div></div>
  <label class="field"><span>Lo que se contó ($)</span><input id="contado" type="number" value="${cont}"></label><div class="eq"><div class="t"><span>Diferencia</span><span>${money(cont-teo)}</span></div></div>
@@ -513,7 +515,7 @@ V.liquidacion=p=>{
  const gastos=S.gastosProp.filter(g=>g.owner===o&&!g.liq),gt=gastos.reduce((a,g)=>a+g.monto,0);const red=p.red||0;
  const neto=c-h-gt;const rn=red?Math.floor(neto/red)*red:neto;
  return `${help('El detalle de lo que se le paga al propietario: lo cobrado de cada contrato, menos el honorario y los gastos a su cargo. Si hay varios dueños, a cada uno le toca su %. Al confirmar sale el comprobante numerado.')}
- <div class="card"><h2>${esc(pers(o).n)}</h2><div class="scroll"><table><thead><tr><th>Carpeta</th><th>Concepto</th><th class="num">%</th><th class="num">Le corresponde</th></tr></thead><tbody>${it.map(q=>`<tr><td>${q.cp}</td><td>${esc(q.x.desc)}</td><td class="num">${q.pct}%</td><td class="num">${money(q.monto)}</td></tr>`).join('')}</tbody></table></div>
+ <div class="card"><h2>${nombre(o)}</h2><div class="scroll"><table><thead><tr><th>Carpeta</th><th>Concepto</th><th class="num">%</th><th class="num">Le corresponde</th></tr></thead><tbody>${it.map(q=>`<tr><td>${L(q.cp,'contrato',{cp:q.cp})}</td><td>${esc(q.x.desc)}</td><td class="num">${q.pct}%</td><td class="num">${money(q.monto)}</td></tr>`).join('')}</tbody></table></div>
  <div class="eq"><div><span>Total cobrado</span><span>${money(c)}</span></div><div><span>− Honorario 5% sobre el total</span><span>${money(-h)}</span></div>${gastos.map(g=>`<div><span>− ${esc(g.desc)}</span><span>${money(-g.monto)}</span></div>`).join('')}${red?`<div><span>Redondeo</span><span>${money(rn-neto)}</span></div>`:''}<div class="t"><span>Neto a pagar</span><span>${money(rn)}</span></div></div>
  <div class="row"><label class="field" style="max-width:220px"><span>Redondeo</span><select id="red"><option value="0">Sin redondeo</option><option value="10" ${red==10?'selected':''}>A decenas</option><option value="100" ${red==100?'selected':''}>A centenas</option><option value="1000" ${red==1000?'selected':''}>A miles</option></select></label></div>
  ${pers(o).cbu!=='Cargado'?'<span class="pill warn">Este propietario no tiene CBU cargado: se le paga en efectivo o hay que cargarlo.</span>':''}
@@ -524,7 +526,7 @@ V.prox=()=>{
  const aj=ajustesDic();
  return `${help('Muestra qué se va a generar el 1 de diciembre: las cuotas de cada contrato y si les toca aumento. Solo muestra, no cambia nada. Las cuotas que esperan el índice quedan "pendientes de ajuste".')}
  <div class="card"><div class="scroll"><table><thead><tr><th>Carpeta</th><th>Inquilino</th><th>Concepto</th><th class="num">Monto</th><th>Ajuste</th></tr></thead><tbody>${Object.entries(S.C).map(([cp,c])=>{const a=aj.includes(cp);
-  return `<tr><td>${cp}</td><td>${esc(pers(c.inq).n)}</td><td>Alquiler diciembre/2026</td><td class="num">${a?(S.aprobados[cp]?money(nuevoMonto(c.alq)):'<span class="pill warn">pendiente de ajuste</span>'):money(c.alq)}</td><td>${a?'IPC, le toca este mes':'<span class="muted">—</span>'}</td></tr>${c.exp?`<tr><td></td><td></td><td>Expensas diciembre/2026</td><td class="num">${money(c.exp)}</td><td></td></tr>`:''}`;}).join('')}</tbody></table></div>
+  return `<tr><td>${L(cp,'contrato',{cp})}</td><td>${nombre(c.inq)}</td><td>Alquiler diciembre/2026</td><td class="num">${a?(S.aprobados[cp]?money(nuevoMonto(c.alq)):'<span class="pill warn">pendiente de ajuste</span>'):money(c.alq)}</td><td>${a?'IPC, le toca este mes':'<span class="muted">—</span>'}</td></tr>${c.exp?`<tr><td></td><td></td><td>Expensas diciembre/2026</td><td class="num">${money(c.exp)}</td><td></td></tr>`:''}`;}).join('')}</tbody></table></div>
  <div class="row" style="justify-content:flex-end">${L('Ir a Cambio de período','cambio',{},'btn primary')}</div></div>`;
 };
 
@@ -532,20 +534,20 @@ V.vencer=p=>{
  const n=p.n||90,ls=aVencer(n);
  return `${help('Contratos que terminan pronto, para avisar al inquilino y al propietario a tiempo. Desde acá se renueva (contrato nuevo en la misma carpeta) o se prorroga (un tramo más del mismo contrato).')}
  <div class="card"><div class="tabs">${[90,60,30].map(k=>`<button class="tab${k===n?' on':''}" type="button" data-n="${k}">${k} días <span class="muted">${aVencer(k).length}</span></button>`).join('')}</div>
- <div class="scroll"><table><thead><tr><th>Carpeta</th><th>Inquilino</th><th>Propiedad</th><th>Termina</th><th>Faltan</th><th></th></tr></thead><tbody>${ls.map(cp=>{const c=C(cp);return `<tr><td>${L(cp,'contrato',{cp})}</td><td>${nombre(c.inq)}</td><td>${esc(prop(cp).dir)}</td><td>${fdate(c.hasta)}</td><td>${days(HOY,d(c.hasta))} días</td><td><button class="btn sm" type="button" data-act="renovar">Renovar o prorrogar</button></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Ninguno en este plazo.</td></tr>'}</tbody></table></div></div>`;
+ <div class="scroll"><table><thead><tr><th>Carpeta</th><th>Inquilino</th><th>Propiedad</th><th>Termina</th><th>Faltan</th><th></th></tr></thead><tbody>${ls.map(cp=>{const c=C(cp);return `<tr><td>${L(cp,'contrato',{cp})}</td><td>${nombre(c.inq)}</td><td>${L(esc(prop(cp).dir),'propiedad',{pr:c.prop})}</td><td>${fdate(c.hasta)}</td><td>${days(HOY,d(c.hasta))} días</td><td><button class="btn sm" type="button" data-act="renovar">Renovar o prorrogar</button></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Ninguno en este plazo.</td></tr>'}</tbody></table></div></div>`;
 };
 
 V.cambio=()=>{
  const aj=ajustesDic();
  return `${help('Una vez por mes: se revisan los aumentos que tocan (con la cuenta del índice), se aprueban, y se generan las cuotas del mes nuevo. Después se avisa el aumento por WhatsApp. Todos los contratos se ajustan por IPC.')}
- <div class="card"><h3>Aumentos de diciembre</h3><div class="scroll"><table><thead><tr><th>Aprobar</th><th>Carpeta</th><th>Inquilino</th><th>Índice</th><th class="num">Monto anterior</th><th class="num">Monto nuevo</th></tr></thead><tbody>${aj.map(cp=>{const c=C(cp);return `<tr><td><input type="checkbox" data-apr="${cp}" ${S.aprobados[cp]?'checked':''} aria-label="Aprobar aumento ${cp}"></td><td>${cp}</td><td>${esc(pers(c.inq).n)}</td><td>IPC 6 meses: 12% (ejemplo)</td><td class="num">${money(c.alq)}</td><td class="num"><b>${money(nuevoMonto(c.alq))}</b></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Este mes no le toca aumento a nadie.</td></tr>'}</tbody></table></div>
+ <div class="card"><h3>Aumentos de diciembre</h3><div class="scroll"><table><thead><tr><th>Aprobar</th><th>Carpeta</th><th>Inquilino</th><th>Índice</th><th class="num">Monto anterior</th><th class="num">Monto nuevo</th></tr></thead><tbody>${aj.map(cp=>{const c=C(cp);return `<tr><td><input type="checkbox" data-apr="${cp}" ${S.aprobados[cp]?'checked':''} aria-label="Aprobar aumento ${cp}"></td><td>${L(cp,'contrato',{cp})}</td><td>${nombre(c.inq)}</td><td>IPC 6 meses: 12% (ejemplo)</td><td class="num">${money(c.alq)}</td><td class="num"><b>${money(nuevoMonto(c.alq))}</b></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Este mes no le toca aumento a nadie.</td></tr>'}</tbody></table></div>
  <p class="muted" style="margin:0">Los montos nuevos se redondean a $5.000.</p>
  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="avisoaum">Avisar aumentos</button><button class="btn primary" type="button" data-act="generar" ${S.generadoDic?'disabled':''}>${S.generadoDic?'Cuotas de diciembre generadas':'Generar cuotas de diciembre'}</button></div></div>`;
 };
 
 /* ======= recibo / visor ======= */
 function verRecibo(n){const r=S.recibos.find(x=>x.n==n);
- modal('Recibo '+String(r.n).padStart(4,'0'),`<div class="sum"><div><div class="lbl">Parra Propiedades · Florencio Varela</div><b>Carpeta ${r.carpeta}</b><div>${esc(pers(C(r.carpeta).inq).n)}</div><div class="muted">${fdate(r.fecha)} · ${r.forma}</div></div><div class="qr" role="img" aria-label="Código QR de verificación"></div></div>
+ modal('Recibo '+String(r.n).padStart(4,'0'),`<div class="sum"><div><div class="lbl">Parra Propiedades · Florencio Varela</div><b>${L('Carpeta '+r.carpeta,'contrato',{cp:r.carpeta})}</b><div>${nombre(C(r.carpeta).inq)}</div><div>${L(esc(prop(r.carpeta).dir),'propiedad',{pr:C(r.carpeta).prop})}</div><div class="muted">${fdate(r.fecha)} · ${r.forma}</div></div><div class="qr" role="img" aria-label="Código QR de verificación"></div></div>
  <table style="margin-top:10px"><tbody>${r.items.map(i=>`<tr><td>${esc(i.desc)}</td><td class="num">${money(i.monto)}</td></tr>${i.pun?`<tr><td class="muted">Punitorio</td><td class="num">${money(i.pun)}</td></tr>`:''}`).join('')}<tr><td><b>Total</b></td><td class="num"><b>${money(r.total)}</b></td></tr></tbody></table>${r.nota?`<p class="muted">${esc(r.nota)}</p>`:''}`,
  [{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Por mail',after:()=>toast('En el prototipo no se manda nada')},{label:'Ya lo mandé',primary:true,after:()=>toast('Quedó anotado que se mandó')}]);}
 function visor(){modal('Contrato firmado',`<div class="pdf"><span class="h"></span><span></span><span></span><span class="s"></span><span></span><span></span><span class="s"></span><span></span><span class="s"></span></div><p class="muted">En el CRM acá se ve el PDF o las fotos del contrato, enteros, tal como se subieron.</p>`,[{label:'Descargar',after:()=>toast('En el prototipo no se descarga nada')},{label:'Cerrar',primary:true}],true);}
@@ -600,7 +602,7 @@ const ACT={
      if(cap>=q.x.monto){q.x.estado='pagado';items.push({id:q.x.id,desc:q.x.desc,monto:q.x.monto,pun:punPag});}
      else{const rest={...q.x,id:S.nextId++,monto:q.x.monto-cap,desc:q.x.desc+' (saldo)',ajustes:[],liq:[]};q.x.monto=cap;q.x.estado='pagado';q.x.desc+=' (pago parcial)';S.cargos.push(rest);items.push({id:q.x.id,desc:q.x.desc,monto:cap,pun:punPag});}});
     neg.forEach(x=>{x.estado='pagado';items.push({id:x.id,desc:x.desc+' (aplicado)',monto:x.monto,pun:0});});const r={n:S.nextRecibo++,fecha:'2026-10-29',carpeta:cp,items,total:ab,forma,nota};if(resto>0)S.cargos.push({id:S.nextId++,carpeta:cp,mes:'2026-10',vence:'2026-10-29',estado:'pendiente',liq:[],ajustes:[],cuenta:'Saldo a favor',desc:'Saldo a favor del recibo '+String(r.n).padStart(4,'0'),monto:-resto});items.forEach(i=>{const x=S.cargos.find(q=>q.id===i.id);x.recibo=r.n;});
-    S.recibos.push(r);S.caja.push({fecha:'2026-10-29',cuenta:'Alquiler',concepto:'Recibo '+String(r.n).padStart(4,'0')+' · carpeta '+cp,entrada:ab,salida:0,forma});
+    S.recibos.push(r);S.caja.push({fecha:'2026-10-29',cuenta:'Alquiler',cp,concepto:'Recibo '+String(r.n).padStart(4,'0'),entrada:ab,salida:0,forma});
     cur.p={cp};setTimeout(()=>{render();verRecibo(r.n);},0);}}],true);},
  verrecibo(b){verRecibo(b.dataset.n);},
  'ce-prev'(){const n=+$('#ce-cant').value,m=+$('#ce-mon').value,con=$('#ce-con').value,det=$('#ce-det').value;const ms=['2026-11','2026-12','2027-01','2027-02','2027-03','2027-04'].slice(0,n);
@@ -640,11 +642,11 @@ const ACT={
  acuerdo(b){const cp=b.dataset.cp,v=vencidos(cp),t=deuda(cp);modal('Acuerdo de pago · '+cp,`<p style="margin-top:0">Junta la deuda vencida (${money(t)}, con punitorios) en cuotas. Si incumple 2, el acuerdo cae y vuelve la deuda original.</p><label class="field"><span>Cantidad de cuotas</span><select id="a-n"><option>2</option><option selected>3</option><option>6</option></select></label><div id="a-prev" class="muted"></div>`,
   [{label:'Cancelar'},{label:'Crear acuerdo',primary:true,fn:o=>{S.gestiones.push({carpeta:cp,fecha:'2026-10-29',tipo:'Acuerdo de pago',con:'Inquilino',res:o.querySelector('#a-n').value+' cuotas de '+money(t/o.querySelector('#a-n').value)});},after:()=>{toast('Acuerdo anotado (en el prototipo no cambia las cuotas)');render();}}]);
   const upd=()=>{const n=+document.querySelector('#a-n').value;document.querySelector('#a-prev').textContent=n+' cuotas de '+money(t/n)+' (sin interés en el ejemplo).';};upd();document.querySelector('#a-n').onchange=upd;},
- adelanto(b){modal('Adelantar pago',`<p style="margin-top:0">Se le da plata al propietario antes de que pague el inquilino, y se descuenta en la próxima liquidación.</p><label class="field"><span>Monto ($)</span><input id="ad-m" type="number" value="100000"></label>`,[{label:'Cancelar'},{label:'Guardar',primary:true,fn:o=>{S.gastosProp.push({owner:b.dataset.id,desc:'Adelanto del 29/10',monto:+o.querySelector('#ad-m').value});S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',concepto:'Adelanto a '+pers(b.dataset.id).n,entrada:0,salida:+o.querySelector('#ad-m').value,forma:'Efectivo'});},after:()=>{toast('Adelanto guardado: se descuenta abajo');render();}}]);},
+ adelanto(b){modal('Adelantar pago',`<p style="margin-top:0">Se le da plata al propietario antes de que pague el inquilino, y se descuenta en la próxima liquidación.</p><label class="field"><span>Monto ($)</span><input id="ad-m" type="number" value="100000"></label>`,[{label:'Cancelar'},{label:'Guardar',primary:true,fn:o=>{S.gastosProp.push({owner:b.dataset.id,desc:'Adelanto del 29/10',monto:+o.querySelector('#ad-m').value});S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:b.dataset.id,concepto:'Adelanto',entrada:0,salida:+o.querySelector('#ad-m').value,forma:'Efectivo'});},after:()=>{toast('Adelanto guardado: se descuenta abajo');render();}}]);},
  liquidar(b){const o=b.dataset.id,neto=+b.dataset.neto,h=+b.dataset.h;pendLiq(o).forEach(q=>q.x.liq.push(o));S.gastosProp.filter(g=>g.owner===o).forEach(g=>g.liq=true);
-  const l={n:S.nextLiq++,owner:o,neto};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',concepto:'Liquidación '+String(l.n).padStart(4,'0')+' · '+pers(o).n,entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
-  S.caja.push({fecha:'2026-10-29',cuenta:'Honorarios',concepto:'Honorario 5% · '+pers(o).n,entrada:h,salida:0,forma:'—'});
-  modal('Comprobante de liquidación '+String(l.n).padStart(4,'0'),`<div class="sum"><div><b>${esc(pers(o).n)}</b><div class="muted">29/10/2026</div><div style="margin-top:8px">Neto pagado: <b>${money(neto)}</b></div></div><div class="qr" role="img" aria-label="Código QR"></div></div>`,[{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Listo',primary:true}]);go('liqpend',{},false);},
+  const l={n:S.nextLiq++,owner:o,neto};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:o,concepto:'Liquidación '+String(l.n).padStart(4,'0'),entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
+  S.caja.push({fecha:'2026-10-29',cuenta:'Honorarios',per:o,concepto:'Honorario 5%',entrada:h,salida:0,forma:'—'});
+  modal('Comprobante de liquidación '+String(l.n).padStart(4,'0'),`<div class="sum"><div><b>${nombre(o)}</b><div class="muted">29/10/2026</div><div style="margin-top:8px">Neto pagado: <b>${money(neto)}</b></div></div><div class="qr" role="img" aria-label="Código QR"></div></div>`,[{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Listo',primary:true}]);go('liqpend',{},false);},
  avisoaum(){const n=Object.values(S.aprobados).filter(Boolean).length;toast(n?'Se avisaría el aumento a '+n+' inquilinos por WhatsApp':'Primero aprobá algún aumento');},
  generar(){S.generadoDic=true;Object.keys(S.C).forEach(cp=>{const c=C(cp),a=ajustesDic().includes(cp);S.cargos.push({id:S.nextId++,carpeta:cp,mes:'2026-12',vence:'2026-12-10',estado:'pendiente',liq:[],ajustes:[],cuenta:'Alquiler',desc:'Alquiler diciembre/2026'+(a&&!S.aprobados[cp]?' (pendiente de ajuste)':''),monto:a&&S.aprobados[cp]?nuevoMonto(c.alq):c.alq});if(a&&S.aprobados[cp])c.alq=nuevoMonto(c.alq);});
   toast('Cuotas de diciembre generadas, sin duplicar');render();}
