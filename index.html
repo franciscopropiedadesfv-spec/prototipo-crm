@@ -266,7 +266,7 @@ function semilla(){
    if(mm==='2026-10'&&c.esc==='afavor')extra=rnd(10000,60000,1000);
    const r={n:nr++,fecha,carpeta:cp,items:rItems,total:tot+extra,forma};its.forEach(x=>x.recibo=r.n);recibos.push(r);
    if(extra)cargos.push({carpeta:cp,mes:mm,vence:fecha,estado:'pendiente',liq:[],ajustes:[],id:id++,cuenta:'Saldo a favor',desc:'Saldo a favor del recibo '+String(r.n).padStart(4,'0'),monto:-extra});
-   caja.push({fecha,cuenta:its.some(x=>x.cuenta==='Expensas')?'Expensas':'Alquiler',cp,concepto:'Recibo '+String(r.n).padStart(4,'0'),entrada:r.total,salida:0,forma});
+   caja.push({fecha,cuenta:its.some(x=>x.cuenta==='Expensas')?'Expensas':'Alquiler',cp,comp:{t:'r',n:r.n},concepto:'Recibo '+String(r.n).padStart(4,'0'),entrada:r.total,salida:0,forma});
   }
  }
  recibos.sort((a,b)=>a.fecha<b.fecha?-1:1);caja.sort((a,b)=>a.fecha<b.fecha?-1:1);
@@ -503,6 +503,11 @@ V.persona=p=>{
   ${esInq?`<div><span class="lbl">Recibos</span>${recs.length?recs.slice(-4).reverse().map(r=>`<div><button class="lnk" type="button" data-act="verrecibo" data-n="${r.n}">Recibo ${String(r.n).padStart(4,'0')}</button> <span class="muted">${fdate(r.fecha)} · ${money(r.total)}</span></div>`).join(''):'<div class="muted">Sin recibos</div>'}</div>`:''}
   ${esPro?`<div><span class="lbl">Liquidaciones</span><div>${ownLiq.length?`Pendiente: <b>${money(ownLiq.reduce((a,q)=>a+q.monto,0)*.95)}</b> neto `+L('Liquidar','liquidacion',{id},'btn sm'):'<span class="muted">Nada pendiente de liquidar</span>'}</div>${S.liqs.filter(l=>l.owner===id).map(l=>`<div class="muted">Liquidación ${String(l.n).padStart(4,'0')} · ${money(l.neto)}</div>`).join('')}</div>`:''}
   ${!esInq&&!esPro?'<p class="muted" style="margin:0">Es garante: no paga ni cobra, pero queda guardado en cada contrato que garantiza.</p>':''}</div>
+ <div class="card"><h3>Comprobantes</h3>${(()=>{const cs=[];
+  S.recibos.filter(r=>rs.some(q=>q.rol==='Inquilino'&&q.cp===r.carpeta)).forEach(r=>cs.push(['r',r.n,'Recibo',r.fecha,r.total,r.env]));
+  S.liqs.filter(l=>l.owner===id).forEach(l=>cs.push(['l',l.n,'Liquidación','2026-10-29',l.neto,l.env]));
+  (S.adels||[]).filter(a=>a.owner===id).forEach(a=>cs.push(['a',a.n,'Adelanto','2026-10-29',a.monto,a.env]));
+  return cs.length?`<table><tbody>${cs.reverse().slice(0,8).map(c=>`<tr><td><button class="lnk" type="button" data-act="vercomp" data-t="${c[0]}" data-n="${c[1]}">${c[2]} ${N4(c[1])}</button></td><td>${fdate(c[3])}</td><td class="num">${money(c[4])}</td><td>${c[5]&&c[5].length?'<span class="pill good">Enviado</span>':'<span class="pill warn">Sin mandar</span>'}</td></tr>`).join('')}</tbody></table>`:'<p class="muted" style="margin:0">Todavía no tiene comprobantes.</p>';})()}</div>
  <div class="card"><h3>Seguimiento</h3><div class="row">${rs.map(r=>L('Documentos '+r.cp,'docs',{cp:r.cp},'btn sm')).join('')}</div>
   <div><span class="lbl">Gestiones</span>${gs.length?gs.map(g=>`<div>${L(g.carpeta,'contrato',{cp:g.carpeta})} · ${fdate(g.fecha)} · ${esc(g.tipo)} · <span class="muted">${esc(g.res)}</span></div>`).join(''):'<div class="muted">Sin gestiones</div>'}</div></div></div>`;
 };
@@ -552,7 +557,7 @@ V.caja=p=>{
  const teo=S.caja.reduce((a,m)=>a+m.entrada-m.salida,0);const cont=p.contado??teo;
  return `${help('La caja muestra cada entrada y salida de plata por cuenta. Al final del día se cuenta el efectivo, se compara con lo que dice el sistema y se cierra el día. A fin de mes, el cierre mensual exige que cuadren cuatro números.')}
  <div class="card"><div class="tabs">${cs.map(c=>`<button class="tab${c===cu?' on':''}" type="button" data-cu="${c}">${c}</button>`).join('')}</div>
- <div class="scroll"><table><thead><tr><th>Fecha</th><th>Cuenta</th><th>Concepto</th><th>Forma</th><th class="num">Entrada</th><th class="num">Salida</th></tr></thead><tbody>${mv.slice().reverse().map(m=>`<tr><td>${fdate(m.fecha)}</td><td>${m.cuenta}</td><td>${esc(m.concepto)}${m.cp?' · '+L('carpeta '+m.cp,'contrato',{cp:m.cp}):''}${m.per?' · '+nombre(m.per):''}</td><td>${m.forma}</td><td class="num">${m.entrada?money(m.entrada):''}</td><td class="num">${m.salida?money(m.salida):''}</td></tr>`).join('')}</tbody></table></div>
+ <div class="scroll"><table><thead><tr><th>Fecha</th><th>Cuenta</th><th>Concepto</th><th>Forma</th><th class="num">Entrada</th><th class="num">Salida</th></tr></thead><tbody>${mv.slice().reverse().map(m=>`<tr><td>${fdate(m.fecha)}</td><td>${m.cuenta}</td><td>${m.comp?`<button class="lnk" type="button" data-act="vercomp" data-t="${m.comp.t}" data-n="${m.comp.n}">${esc(m.concepto)}</button>`:esc(m.concepto)}${m.cp?' · '+L('carpeta '+m.cp,'contrato',{cp:m.cp}):''}${m.per?' · '+nombre(m.per):''}</td><td>${m.forma}</td><td class="num">${m.entrada?money(m.entrada):''}</td><td class="num">${m.salida?money(m.salida):''}</td></tr>`).join('')}</tbody></table></div>
  <div class="tot"><div><span class="lbl">Entradas</span><b>${money(ent)}</b></div><div><span class="lbl">Salidas</span><b>${money(sal)}</b></div></div></div>
  <div class="grid2"><div class="card"><h3>Arqueo del día</h3><div class="eq"><div><span>Saldo según el sistema</span><span>${money(teo)}</span></div></div>
  <label class="field"><span>Lo que se contó ($)</span><input id="contado" type="number" value="${cont}"></label><div class="eq"><div class="t"><span>Diferencia</span><span>${money(cont-teo)}</span></div></div>
@@ -695,10 +700,25 @@ V.usuarios=p=>{initUsuarios();const rs=Object.keys(S.rangos),r=p.r&&S.rangos[p.r
  <table><thead><tr><th>Nombre</th><th>Usuario del hub</th><th>Rango</th></tr></thead><tbody>${S.cuentas.map((c,i)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.mail)}</td><td><select data-cu="${i}" aria-label="Rango de ${esc(c.n)}" style="max-width:220px">${rs.map(x=>`<option ${x===c.r?'selected':''}>${esc(x)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`;};
 
 /* ======= recibo / visor ======= */
-function verRecibo(n){const r=S.recibos.find(x=>x.n==n);
- modal('Recibo '+String(r.n).padStart(4,'0'),`<div class="sum"><div><div class="lbl">Parra Propiedades · Florencio Varela</div><b>${L('Carpeta '+r.carpeta,'contrato',{cp:r.carpeta})}</b><div>${nombre(C(r.carpeta).inq)}</div><div>${L(esc(prop(r.carpeta).dir),'propiedad',{pr:C(r.carpeta).prop})}</div><div class="muted">${fdate(r.fecha)} · ${r.forma}</div></div><div class="qr" role="img" aria-label="Código QR de verificación"></div></div>
- <table style="margin-top:10px"><tbody>${r.items.map(i=>`<tr><td>${esc(i.desc)}</td><td class="num">${money(i.monto)}</td></tr>${i.pun?`<tr><td class="muted">Punitorio</td><td class="num">${money(i.pun)}</td></tr>`:''}`).join('')}<tr><td><b>Total</b></td><td class="num"><b>${money(r.total)}</b></td></tr></tbody></table>${r.nota?`<p class="muted">${esc(r.nota)}</p>`:''}`,
- [{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Por mail',after:()=>toast('En el prototipo no se manda nada')},{label:'Ya lo mandé',primary:true,after:()=>toast('Quedó anotado que se mandó')}]);}
+const N4=n=>String(n).padStart(4,'0');
+function verComp(t,n){
+ let tit,per,cp,lin,tot,fecha,forma,nota,obj;
+ if(t==='r'){obj=S.recibos.find(x=>x.n==n);tit='Recibo';per=C(obj.carpeta).inq;cp=obj.carpeta;fecha=obj.fecha;forma=obj.forma;nota=obj.nota;tot=obj.total;
+  lin=[];obj.items.forEach(i=>{lin.push([i.desc,i.monto]);if(i.pun)lin.push(['Punitorio',i.pun]);});}
+ else if(t==='l'){obj=S.liqs.find(x=>x.n==n);tit='Liquidación';per=obj.owner;fecha='2026-10-29';forma=pers(per).cbu==='Cargado'?'Transferencia':'Efectivo';tot=obj.neto;lin=obj.lineas||[['Neto liquidado',obj.neto]];}
+ else{obj=S.adels.find(x=>x.n==n);tit='Adelanto a propietario';per=obj.owner;fecha='2026-10-29';forma=obj.forma;tot=obj.monto;lin=[[obj.desc,obj.monto]];}
+ obj.env=obj.env||[];const p=pers(per);
+ const anotar=(como)=>{obj.env.push({como,fecha:'29/10/2026'});render();};
+ modal(tit+' '+N4(n),`<div class="sum"><div><div class="lbl">Parra Propiedades · Florencio Varela</div><b>${tit} N° ${N4(n)}</b>
+  <div>${nombre(per)}</div>${cp?`<div>${L('Carpeta '+cp,'contrato',{cp})} · ${L(esc(prop(cp).dir),'propiedad',{pr:C(cp).prop})}</div>`:''}<div class="muted">${fdate(fecha)} · ${forma}</div></div><div class="qr" role="img" aria-label="Código QR de verificación"></div></div>
+  <table style="margin-top:10px"><tbody>${lin.map(l=>`<tr><td>${esc(l[0])}</td><td class="num">${money(l[1])}</td></tr>`).join('')}<tr><td><b>Total</b></td><td class="num"><b>${money(tot)}</b></td></tr></tbody></table>${nota?`<p class="muted">${esc(nota)}</p>`:''}
+  <div class="card" style="margin-top:10px;padding:10px 12px"><span class="lbl">Enviar a ${esc(p.n)}</span><div class="muted" style="font-size:13px">WhatsApp ${esc(p.tel||'sin teléfono')} · Mail ${esc(p.mail||'sin mail cargado')}</div>
+  <div>${obj.env.length?obj.env.map(e=>`<span class="pill good">Enviado por ${e.como} el ${e.fecha}</span>`).join(' '):'<span class="pill warn">Todavía no se mandó</span>'}</div></div>`,
+ [{label:'Mandar por WhatsApp',after:()=>{anotar('WhatsApp');toast('En el CRM se abre WhatsApp con el comprobante. Quedó anotado.');}},
+  {label:'Mandar por mail',fn:()=>{if(!p.mail){toast('No tiene mail cargado');return false;}},after:()=>{anotar('mail');toast('En el CRM sale el mail con el PDF. Quedó anotado.');}},
+  {label:'Descargar PDF',fn:()=>{toast('En el prototipo no se descarga');return false;}},
+  {label:'Ya lo mandé',primary:true,after:()=>{anotar('a mano');toast('Quedó anotado que se mandó');}}]);}
+function verRecibo(n){verComp('r',n);}
 function visor(){modal('Contrato firmado',`<div class="pdf"><span class="h"></span><span></span><span></span><span class="s"></span><span></span><span></span><span class="s"></span><span></span><span class="s"></span></div><p class="muted">En el CRM acá se ve el PDF o las fotos del contrato, enteros, tal como se subieron.</p>`,[{label:'Descargar',after:()=>toast('En el prototipo no se descarga nada')},{label:'Cerrar',primary:true}],true);}
 function pedirMotivo(titulo,texto,extra,fn,onCancel){
  modal(titulo,`<p style="margin-top:0">${texto}</p>${extra||''}<label class="field"><span>Motivo (obligatorio)</span><input id="mot"></label>`,
@@ -776,9 +796,10 @@ const ACT={
      if(cap>=q.x.monto){q.x.estado='pagado';items.push({id:q.x.id,desc:q.x.desc,monto:q.x.monto,pun:punPag});}
      else{const rest={...q.x,id:S.nextId++,monto:q.x.monto-cap,desc:q.x.desc+' (saldo)',ajustes:[],liq:q.x.liq.slice(),adel:(q.x.adel||[]).slice()};q.x.monto=cap;q.x.estado='pagado';q.x.desc+=' (pago parcial)';S.cargos.push(rest);items.push({id:q.x.id,desc:q.x.desc,monto:cap,pun:punPag});}});
     neg.forEach(x=>{x.estado='pagado';items.push({id:x.id,desc:x.desc+' (aplicado)',monto:x.monto,pun:0});});const r={n:S.nextRecibo++,fecha:'2026-10-29',carpeta:cp,items,total:ab,forma,nota};if(resto>0)S.cargos.push({id:S.nextId++,carpeta:cp,mes:'2026-10',vence:'2026-10-29',estado:'pendiente',liq:[],ajustes:[],cuenta:'Saldo a favor',desc:'Saldo a favor del recibo '+String(r.n).padStart(4,'0'),monto:-resto});items.forEach(i=>{const x=S.cargos.find(q=>q.id===i.id);x.recibo=r.n;});
-    S.recibos.push(r);S.caja.push({fecha:'2026-10-29',cuenta:'Alquiler',cp,concepto:'Recibo '+String(r.n).padStart(4,'0'),entrada:ab,salida:0,forma});
+    S.recibos.push(r);S.caja.push({fecha:'2026-10-29',cuenta:'Alquiler',cp,comp:{t:'r',n:r.n},concepto:'Recibo '+String(r.n).padStart(4,'0'),entrada:ab,salida:0,forma});
     cur.p={cp};setTimeout(()=>{render();verRecibo(r.n);},0);}}],true);},
  verrecibo(b){verRecibo(b.dataset.n);},
+ vercomp(b){verComp(b.dataset.t,b.dataset.n);},
  'ce-prev'(){const n=+$('#ce-cant').value,m=+$('#ce-mon').value,con=$('#ce-con').value,det=$('#ce-det').value;const ms=['2026-11','2026-12','2027-01','2027-02','2027-03','2027-04'].slice(0,n);
   $('#ce-out').innerHTML=`<table><thead><tr><th>Mes</th><th>Cargo</th><th class="num">Monto</th></tr></thead><tbody>${ms.map(x=>`<tr><td>${mesTxt(x)}</td><td>${esc(con+(det?' – '+det:''))}</td><td class="num">${money($('#ce-inq').value==='Descontar del pago'?-m:m)}</td></tr>`).join('')}</tbody></table>`;},
  'ce-save'(){const cp=cur.p.cp,n=+$('#ce-cant').value,m=+$('#ce-mon').value,con=$('#ce-con').value,det=$('#ce-det').value,ef=$('#ce-inq').value;
@@ -816,15 +837,19 @@ const ACT={
  acuerdo(b){const cp=b.dataset.cp,v=vencidos(cp),t=deuda(cp);modal('Acuerdo de pago · '+cp,`<p style="margin-top:0">Junta la deuda vencida (${money(t)}, con punitorios) en cuotas. Si incumple 2, el acuerdo cae y vuelve la deuda original.</p><label class="field"><span>Cantidad de cuotas</span><select id="a-n"><option>2</option><option selected>3</option><option>6</option></select></label><div id="a-prev" class="muted"></div>`,
   [{label:'Cancelar'},{label:'Crear acuerdo',primary:true,fn:o=>{S.gestiones.push({carpeta:cp,fecha:'2026-10-29',tipo:'Acuerdo de pago',con:'Inquilino',res:o.querySelector('#a-n').value+' cuotas de '+money(t/o.querySelector('#a-n').value)});},after:()=>{toast('Acuerdo anotado (en el prototipo no cambia las cuotas)');render();}}]);
   const upd=()=>{const n=+document.querySelector('#a-n').value;document.querySelector('#a-prev').textContent=n+' cuotas de '+money(t/n)+' (sin interés en el ejemplo).';};upd();document.querySelector('#a-n').onchange=upd;},
- adelanto(b){modal('Adelantar pago',`<p style="margin-top:0">Se le da plata al propietario antes de que pague el inquilino, y se descuenta en la próxima liquidación.</p><label class="field"><span>Monto ($)</span><input id="ad-m" type="number" value="100000"></label>`,[{label:'Cancelar'},{label:'Guardar',primary:true,fn:o=>{S.gastosProp.push({owner:b.dataset.id,desc:'Adelanto del 29/10',monto:+o.querySelector('#ad-m').value});S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:b.dataset.id,concepto:'Adelanto',entrada:0,salida:+o.querySelector('#ad-m').value,forma:'Efectivo'});},after:()=>{toast('Adelanto guardado: se descuenta abajo');render();}}]);},
+ adelanto(b){modal('Adelantar pago',`<p style="margin-top:0">Se le da plata al propietario antes de que pague el inquilino, y se descuenta en la próxima liquidación.</p><label class="field"><span>Monto ($)</span><input id="ad-m" type="number" value="100000"></label>`,[{label:'Cancelar'},{label:'Guardar',primary:true,fn:o=>{const m=+o.querySelector('#ad-m').value;S.adels=S.adels||[];S.nextAde=S.nextAde||1;const a={n:S.nextAde++,owner:b.dataset.id,monto:m,desc:'Adelanto a cuenta de la próxima liquidación',forma:'Efectivo'};S.adels.push(a);S.gastosProp.push({owner:b.dataset.id,desc:'Adelanto '+N4(a.n)+' del 29/10',monto:m});S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:b.dataset.id,comp:{t:'a',n:a.n},concepto:'Adelanto '+N4(a.n),entrada:0,salida:m,forma:'Efectivo'});o._a=a;},after:()=>{render();const a=S.adels.at(-1);verComp('a',a.n);}}]);},
  liquidar(b){const o=b.dataset.id,neto=+b.dataset.neto,h=+b.dataset.h,ade=+b.dataset.ade,pg=cur.p;
   const pag=pendLiq(o),cps=cpsDe(o),sel=pg.sel||cps.filter(cp=>pag.some(q=>q.cp===cp)),adv=pg.adv||[];
+  const lineas=[];pag.filter(q=>sel.includes(q.cp)).forEach(q=>lineas.push([q.x.desc+' · '+q.cp+' ('+q.pct+'%)',q.monto]));
+  adv.forEach(cp=>sinCobrar(o,cp).forEach(q=>lineas.push(['Adelanto de la inmobiliaria: '+q.x.desc+' · '+cp,q.monto])));
+  lineas.push(['Honorario de administración 5%',-h]);S.gastosProp.filter(g=>g.owner===o&&!g.liq).forEach(g=>lineas.push([g.desc,-g.monto]));
+  const tot=lineas.reduce((a,x)=>a+x[1],0);if(tot!==neto)lineas.push(['Redondeo',neto-tot]);
   pag.filter(q=>sel.includes(q.cp)).forEach(q=>q.x.liq.push(o));
   adv.forEach(cp=>sinCobrar(o,cp).forEach(q=>{q.x.liq.push(o);q.x.adel=(q.x.adel||[]).concat(o);}));
   S.gastosProp.filter(g=>g.owner===o).forEach(g=>g.liq=true);
-  const l={n:S.nextLiq++,owner:o,neto,h,ade};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:o,concepto:'Liquidación '+String(l.n).padStart(4,'0')+(ade?' (incluye adelanto de la inmobiliaria)':''),entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
+  const l={n:S.nextLiq++,owner:o,neto,h,ade,lineas};S.liqs.push(l);S.caja.push({fecha:'2026-10-29',cuenta:'Liquidación',per:o,comp:{t:'l',n:l.n},concepto:'Liquidación '+String(l.n).padStart(4,'0')+(ade?' (incluye adelanto de la inmobiliaria)':''),entrada:0,salida:neto,forma:pers(o).cbu==='Cargado'?'Transferencia':'Efectivo'});
   S.caja.push({fecha:'2026-10-29',cuenta:'Honorarios',per:o,concepto:'Honorario 5%',entrada:h,salida:0,forma:'—'});
-  modal('Comprobante de liquidación '+String(l.n).padStart(4,'0'),`<div class="sum"><div><b>${nombre(o)}</b><div class="muted">29/10/2026</div><div style="margin-top:8px">Neto pagado: <b>${money(neto)}</b></div>${ade?`<div class="muted">Incluye ${money(ade)} adelantados por la inmobiliaria</div>`:''}</div><div class="qr" role="img" aria-label="Código QR"></div></div>`,[{label:'Mandar por WhatsApp',after:()=>toast('En el prototipo no se manda nada')},{label:'Listo',primary:true}]);go('liqpend',{},false);},
+  go('liqpend',{},false);verComp('l',l.n);},
  avisoaum(){const n=Object.values(S.aprobados).filter(Boolean).length;toast(n?'Se avisaría el aumento a '+n+' inquilinos por WhatsApp':'Primero aprobá algún aumento');},
  generar(){S.generadoDic=true;Object.keys(S.C).forEach(cp=>{const c=C(cp),a=ajustesDic().includes(cp);S.cargos.push({id:S.nextId++,carpeta:cp,mes:'2026-12',vence:'2026-12-10',estado:'pendiente',liq:[],ajustes:[],cuenta:'Alquiler',desc:'Alquiler diciembre/2026'+(a&&!S.aprobados[cp]?' (pendiente de ajuste)':''),monto:a&&S.aprobados[cp]?nuevoMonto(c.alq):c.alq});if(a&&S.aprobados[cp])c.alq=nuevoMonto(c.alq);});
   toast('Cuotas de diciembre generadas, sin duplicar');render();}
